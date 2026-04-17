@@ -1,1 +1,7 @@
 project_id = "rkqtgcvlvepzaojiyinz"
+
+[functions.process-lecture]
+verify_jwt = false
+
+[functions.chat-with-lecture]
+verify_jwt = false
