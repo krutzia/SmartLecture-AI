@@ -1,0 +1,113 @@
+import { useEffect, useState } from "react";
+import { useParams, Link } from "react-router-dom";
+import { motion } from "framer-motion";
+import { ArrowLeft, FileText, Sparkles, Lightbulb, Layers, MessageCircle, Loader2, AlertCircle } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { TranscriptTab } from "@/components/lecture/TranscriptTab";
+import { SummaryTab } from "@/components/lecture/SummaryTab";
+import { ConceptsTab } from "@/components/lecture/ConceptsTab";
+import { FlashcardsTab } from "@/components/lecture/FlashcardsTab";
+import { ChatTab } from "@/components/lecture/ChatTab";
+
+type Lecture = { id: string; title: string; status: string; source_type: string; error_message: string | null };
+
+const LectureViewer = () => {
+  const { id } = useParams<{ id: string }>();
+  const [lecture, setLecture] = useState<Lecture | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!id) return;
+    const load = async () => {
+      const { data } = await supabase.from("lectures").select("id,title,status,source_type,error_message").eq("id", id).maybeSingle();
+      setLecture(data);
+      setLoading(false);
+    };
+    load();
+    const ch = supabase.channel(`lecture-${id}`).on("postgres_changes", { event: "UPDATE", schema: "public", table: "lectures", filter: `id=eq.${id}` }, load).subscribe();
+    return () => { supabase.removeChannel(ch); };
+  }, [id]);
+
+  if (loading) {
+    return (
+      <div className="container py-8">
+        <div className="flex h-[60vh] items-center justify-center">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+      </div>
+    );
+  }
+
+  if (!lecture) {
+    return (
+      <div className="container py-12 text-center">
+        <h1 className="font-display text-2xl font-bold">Lecture not found</h1>
+        <Button asChild className="mt-4 rounded-full"><Link to="/library">Back to library</Link></Button>
+      </div>
+    );
+  }
+
+  const isProcessing = !["done", "error"].includes(lecture.status);
+
+  return (
+    <div className="container max-w-6xl py-6">
+      <Button asChild variant="ghost" size="sm" className="mb-4 -ml-2">
+        <Link to="/library"><ArrowLeft className="mr-1 h-4 w-4" /> Library</Link>
+      </Button>
+
+      <h1 className="font-display text-3xl font-extrabold md:text-4xl">{lecture.title}</h1>
+
+      {isProcessing && (
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
+          <Card className="mt-6 rounded-3xl border-ai/20 bg-ai-soft p-8 text-center">
+            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-ai text-white">
+              <Loader2 className="h-6 w-6 animate-spin" />
+            </div>
+            <h3 className="mt-4 font-display text-xl font-bold text-ai-foreground/90">
+              {lecture.status === "uploading" && "Uploading..."}
+              {lecture.status === "extracting" && "Extracting content..."}
+              {lecture.status === "transcribing" && "Transcribing your lecture..."}
+              {lecture.status === "summarizing" && "Summarizing & generating flashcards..."}
+            </h3>
+            <p className="mt-2 text-sm text-muted-foreground">This usually takes under a minute. Hang tight ✨</p>
+          </Card>
+        </motion.div>
+      )}
+
+      {lecture.status === "error" && (
+        <Card className="mt-6 rounded-3xl border-destructive/30 bg-destructive/5 p-6">
+          <div className="flex gap-3">
+            <AlertCircle className="h-5 w-5 shrink-0 text-destructive" />
+            <div>
+              <h3 className="font-bold">Something went wrong</h3>
+              <p className="mt-1 text-sm text-muted-foreground">{lecture.error_message ?? "Please try again."}</p>
+            </div>
+          </div>
+        </Card>
+      )}
+
+      {lecture.status === "done" && (
+        <Tabs defaultValue="summary" className="mt-6">
+          <TabsList className="grid w-full grid-cols-2 rounded-full bg-muted p-1 sm:grid-cols-5">
+            <TabsTrigger value="summary" className="rounded-full gap-1.5"><Sparkles className="h-3.5 w-3.5" /> Summary</TabsTrigger>
+            <TabsTrigger value="concepts" className="rounded-full gap-1.5"><Lightbulb className="h-3.5 w-3.5" /> Concepts</TabsTrigger>
+            <TabsTrigger value="flashcards" className="rounded-full gap-1.5"><Layers className="h-3.5 w-3.5" /> Cards</TabsTrigger>
+            <TabsTrigger value="transcript" className="rounded-full gap-1.5"><FileText className="h-3.5 w-3.5" /> Transcript</TabsTrigger>
+            <TabsTrigger value="chat" className="rounded-full gap-1.5"><MessageCircle className="h-3.5 w-3.5" /> Chat</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="summary" className="mt-6"><SummaryTab lectureId={lecture.id} /></TabsContent>
+          <TabsContent value="concepts" className="mt-6"><ConceptsTab lectureId={lecture.id} /></TabsContent>
+          <TabsContent value="flashcards" className="mt-6"><FlashcardsTab lectureId={lecture.id} /></TabsContent>
+          <TabsContent value="transcript" className="mt-6"><TranscriptTab lectureId={lecture.id} /></TabsContent>
+          <TabsContent value="chat" className="mt-6"><ChatTab lectureId={lecture.id} lectureTitle={lecture.title} /></TabsContent>
+        </Tabs>
+      )}
+    </div>
+  );
+};
+
+export default LectureViewer;
