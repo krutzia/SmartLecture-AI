@@ -14,7 +14,232 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      chat_messages: {
+        Row: {
+          content: string
+          created_at: string
+          id: string
+          lecture_id: string
+          role: string
+          user_id: string
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          id?: string
+          lecture_id: string
+          role: string
+          user_id: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          id?: string
+          lecture_id?: string
+          role?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chat_messages_lecture_id_fkey"
+            columns: ["lecture_id"]
+            isOneToOne: false
+            referencedRelation: "lectures"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      concepts: {
+        Row: {
+          created_at: string
+          definition: string | null
+          id: string
+          kind: string | null
+          lecture_id: string
+          term: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          definition?: string | null
+          id?: string
+          kind?: string | null
+          lecture_id: string
+          term: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          definition?: string | null
+          id?: string
+          kind?: string | null
+          lecture_id?: string
+          term?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "concepts_lecture_id_fkey"
+            columns: ["lecture_id"]
+            isOneToOne: false
+            referencedRelation: "lectures"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      flashcards: {
+        Row: {
+          answer: string
+          created_at: string
+          id: string
+          known: boolean
+          lecture_id: string
+          question: string
+          user_id: string
+        }
+        Insert: {
+          answer: string
+          created_at?: string
+          id?: string
+          known?: boolean
+          lecture_id: string
+          question: string
+          user_id: string
+        }
+        Update: {
+          answer?: string
+          created_at?: string
+          id?: string
+          known?: boolean
+          lecture_id?: string
+          question?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "flashcards_lecture_id_fkey"
+            columns: ["lecture_id"]
+            isOneToOne: false
+            referencedRelation: "lectures"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      lectures: {
+        Row: {
+          created_at: string
+          duration_seconds: number | null
+          error_message: string | null
+          file_path: string | null
+          id: string
+          source_type: Database["public"]["Enums"]["lecture_source"]
+          status: Database["public"]["Enums"]["lecture_status"]
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          duration_seconds?: number | null
+          error_message?: string | null
+          file_path?: string | null
+          id?: string
+          source_type: Database["public"]["Enums"]["lecture_source"]
+          status?: Database["public"]["Enums"]["lecture_status"]
+          title: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          duration_seconds?: number | null
+          error_message?: string | null
+          file_path?: string | null
+          id?: string
+          source_type?: Database["public"]["Enums"]["lecture_source"]
+          status?: Database["public"]["Enums"]["lecture_status"]
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      summaries: {
+        Row: {
+          bullets: Json
+          created_at: string
+          detailed: string | null
+          id: string
+          lecture_id: string
+          quick: string | null
+          takeaways: Json
+          user_id: string
+        }
+        Insert: {
+          bullets?: Json
+          created_at?: string
+          detailed?: string | null
+          id?: string
+          lecture_id: string
+          quick?: string | null
+          takeaways?: Json
+          user_id: string
+        }
+        Update: {
+          bullets?: Json
+          created_at?: string
+          detailed?: string | null
+          id?: string
+          lecture_id?: string
+          quick?: string | null
+          takeaways?: Json
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "summaries_lecture_id_fkey"
+            columns: ["lecture_id"]
+            isOneToOne: false
+            referencedRelation: "lectures"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      transcripts: {
+        Row: {
+          created_at: string
+          full_text: string
+          id: string
+          lecture_id: string
+          segments: Json
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          full_text?: string
+          id?: string
+          lecture_id: string
+          segments?: Json
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          full_text?: string
+          id?: string
+          lecture_id?: string
+          segments?: Json
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "transcripts_lecture_id_fkey"
+            columns: ["lecture_id"]
+            isOneToOne: false
+            referencedRelation: "lectures"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
@@ -23,7 +248,14 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
-      [_ in never]: never
+      lecture_source: "audio" | "video" | "pdf" | "text"
+      lecture_status:
+        | "uploading"
+        | "extracting"
+        | "transcribing"
+        | "summarizing"
+        | "done"
+        | "error"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +382,16 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      lecture_source: ["audio", "video", "pdf", "text"],
+      lecture_status: [
+        "uploading",
+        "extracting",
+        "transcribing",
+        "summarizing",
+        "done",
+        "error",
+      ],
+    },
   },
 } as const
