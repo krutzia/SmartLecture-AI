@@ -28,6 +28,26 @@ export const FlashcardsTab = ({ lectureId }: { lectureId: string }) => {
     if (!c) return;
     await supabase.from("flashcards").update({ known }).eq("id", c.id);
     setCards((prev) => prev.map((x, i) => (i === idx ? { ...x, known } : x)));
+    // Log quiz attempt for analytics
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+      const topic = c.question.split(/[?:.]/)[0].trim().slice(0, 60) || "Flashcard";
+      await Promise.all([
+        supabase.from("quiz_attempts").insert({
+          user_id: user.id,
+          lecture_id: lectureId,
+          topic,
+          flashcard_id: c.id,
+          correct: known,
+        }),
+        supabase.from("study_sessions").insert({
+          user_id: user.id,
+          lecture_id: lectureId,
+          activity: "flashcard",
+          minutes: 0.3,
+        }),
+      ]);
+    }
     next();
   };
 
