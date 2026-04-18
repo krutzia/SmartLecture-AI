@@ -164,6 +164,63 @@ export type Database = {
         }
         Relationships: []
       }
+      quiz_attempts: {
+        Row: {
+          correct: boolean
+          created_at: string
+          flashcard_id: string | null
+          id: string
+          lecture_id: string
+          topic: string | null
+          user_id: string
+        }
+        Insert: {
+          correct: boolean
+          created_at?: string
+          flashcard_id?: string | null
+          id?: string
+          lecture_id: string
+          topic?: string | null
+          user_id: string
+        }
+        Update: {
+          correct?: boolean
+          created_at?: string
+          flashcard_id?: string | null
+          id?: string
+          lecture_id?: string
+          topic?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      study_sessions: {
+        Row: {
+          activity: string
+          created_at: string
+          id: string
+          lecture_id: string
+          minutes: number
+          user_id: string
+        }
+        Insert: {
+          activity?: string
+          created_at?: string
+          id?: string
+          lecture_id: string
+          minutes?: number
+          user_id: string
+        }
+        Update: {
+          activity?: string
+          created_at?: string
+          id?: string
+          lecture_id?: string
+          minutes?: number
+          user_id?: string
+        }
+        Relationships: []
+      }
       summaries: {
         Row: {
           bullets: Json
