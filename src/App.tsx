@@ -12,6 +12,7 @@ import Dashboard from "./pages/Dashboard";
 import Upload from "./pages/Upload";
 import Library from "./pages/Library";
 import LectureViewer from "./pages/LectureViewer";
+import Analytics from "./pages/Analytics";
 import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound.tsx";
 
@@ -32,6 +33,7 @@ const App = () => (
               <Route path="/upload" element={<Upload />} />
               <Route path="/library" element={<Library />} />
               <Route path="/lecture/:id" element={<LectureViewer />} />
+              <Route path="/analytics" element={<Analytics />} />
               <Route path="/settings" element={<Settings />} />
             </Route>
             <Route path="*" element={<NotFound />} />
