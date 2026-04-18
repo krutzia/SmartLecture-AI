@@ -51,6 +51,7 @@ export type Database = {
       }
       concepts: {
         Row: {
+          cluster: string | null
           created_at: string
           definition: string | null
           id: string
@@ -60,6 +61,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          cluster?: string | null
           created_at?: string
           definition?: string | null
           id?: string
@@ -69,6 +71,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          cluster?: string | null
           created_at?: string
           definition?: string | null
           id?: string
@@ -91,28 +94,43 @@ export type Database = {
         Row: {
           answer: string
           created_at: string
+          due_date: string
+          ease_factor: number
           id: string
+          interval_days: number
           known: boolean
+          last_reviewed_at: string | null
           lecture_id: string
           question: string
+          repetitions: number
           user_id: string
         }
         Insert: {
           answer: string
           created_at?: string
+          due_date?: string
+          ease_factor?: number
           id?: string
+          interval_days?: number
           known?: boolean
+          last_reviewed_at?: string | null
           lecture_id: string
           question: string
+          repetitions?: number
           user_id: string
         }
         Update: {
           answer?: string
           created_at?: string
+          due_date?: string
+          ease_factor?: number
           id?: string
+          interval_days?: number
           known?: boolean
+          last_reviewed_at?: string | null
           lecture_id?: string
           question?: string
+          repetitions?: number
           user_id?: string
         }
         Relationships: [
@@ -190,6 +208,36 @@ export type Database = {
           id?: string
           lecture_id?: string
           topic?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      quizzes: {
+        Row: {
+          created_at: string
+          id: string
+          lecture_id: string
+          question_count: number
+          questions: Json
+          title: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          lecture_id: string
+          question_count?: number
+          questions?: Json
+          title?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          lecture_id?: string
+          question_count?: number
+          questions?: Json
+          title?: string
           user_id?: string
         }
         Relationships: []
