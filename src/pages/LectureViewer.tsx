@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { motion } from "framer-motion";
-import { ArrowLeft, FileText, Sparkles, Lightbulb, Layers, MessageCircle, Loader2, AlertCircle, Network } from "lucide-react";
+import { ArrowLeft, FileText, Sparkles, Lightbulb, Layers, MessageCircle, Loader2, AlertCircle, Network, ListChecks } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -12,6 +12,7 @@ import { ConceptsTab } from "@/components/lecture/ConceptsTab";
 import { FlashcardsTab } from "@/components/lecture/FlashcardsTab";
 import { ChatTab } from "@/components/lecture/ChatTab";
 import { MindMapTab } from "@/components/lecture/MindMapTab";
+import { QuizTab } from "@/components/lecture/QuizTab";
 
 type Lecture = { id: string; title: string; status: string; source_type: string; error_message: string | null };
 
