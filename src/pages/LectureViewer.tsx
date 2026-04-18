@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { motion } from "framer-motion";
-import { ArrowLeft, FileText, Sparkles, Lightbulb, Layers, MessageCircle, Loader2, AlertCircle, Network } from "lucide-react";
+import { ArrowLeft, FileText, Sparkles, Lightbulb, Layers, MessageCircle, Loader2, AlertCircle, Network, ListChecks } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -12,6 +12,7 @@ import { ConceptsTab } from "@/components/lecture/ConceptsTab";
 import { FlashcardsTab } from "@/components/lecture/FlashcardsTab";
 import { ChatTab } from "@/components/lecture/ChatTab";
 import { MindMapTab } from "@/components/lecture/MindMapTab";
+import { QuizTab } from "@/components/lecture/QuizTab";
 
 type Lecture = { id: string; title: string; status: string; source_type: string; error_message: string | null };
 
@@ -116,11 +117,12 @@ const LectureViewer = () => {
 
       {lecture.status === "done" && (
         <Tabs defaultValue="summary" className="mt-6">
-          <TabsList className="grid w-full grid-cols-3 rounded-full bg-muted p-1 sm:grid-cols-6">
+          <TabsList className="grid w-full grid-cols-4 rounded-full bg-muted p-1 sm:grid-cols-7">
             <TabsTrigger value="summary" className="rounded-full gap-1.5"><Sparkles className="h-3.5 w-3.5" /> Summary</TabsTrigger>
             <TabsTrigger value="concepts" className="rounded-full gap-1.5"><Lightbulb className="h-3.5 w-3.5" /> Concepts</TabsTrigger>
             <TabsTrigger value="mindmap" className="rounded-full gap-1.5"><Network className="h-3.5 w-3.5" /> Mind Map</TabsTrigger>
             <TabsTrigger value="flashcards" className="rounded-full gap-1.5"><Layers className="h-3.5 w-3.5" /> Cards</TabsTrigger>
+            <TabsTrigger value="quiz" className="rounded-full gap-1.5"><ListChecks className="h-3.5 w-3.5" /> Quiz</TabsTrigger>
             <TabsTrigger value="transcript" className="rounded-full gap-1.5"><FileText className="h-3.5 w-3.5" /> Transcript</TabsTrigger>
             <TabsTrigger value="chat" className="rounded-full gap-1.5"><MessageCircle className="h-3.5 w-3.5" /> Chat</TabsTrigger>
           </TabsList>
@@ -129,6 +131,7 @@ const LectureViewer = () => {
           <TabsContent value="concepts" className="mt-6"><ConceptsTab lectureId={lecture.id} /></TabsContent>
           <TabsContent value="mindmap" className="mt-6"><MindMapTab lectureId={lecture.id} /></TabsContent>
           <TabsContent value="flashcards" className="mt-6"><FlashcardsTab lectureId={lecture.id} /></TabsContent>
+          <TabsContent value="quiz" className="mt-6"><QuizTab lectureId={lecture.id} /></TabsContent>
           <TabsContent value="transcript" className="mt-6"><TranscriptTab lectureId={lecture.id} /></TabsContent>
           <TabsContent value="chat" className="mt-6"><ChatTab lectureId={lecture.id} lectureTitle={lecture.title} /></TabsContent>
         </Tabs>

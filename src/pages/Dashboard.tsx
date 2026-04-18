@@ -7,6 +7,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { DueTodayWidget } from "@/components/DueTodayWidget";
 
 type Lecture = {
   id: string; title: string; status: string; source_type: string; created_at: string;
@@ -80,6 +81,11 @@ const Dashboard = () => {
             </Card>
           </motion.div>
         ))}
+      </div>
+
+      {/* Due today review queue */}
+      <div className="mt-8">
+        <DueTodayWidget />
       </div>
 
       {/* Recent */}
