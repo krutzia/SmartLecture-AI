@@ -6,6 +6,7 @@ import {
   MiniMap,
   type Node,
   type Edge,
+  type NodeMouseHandler,
   Position,
   MarkerType,
 } from "@xyflow/react";
@@ -14,7 +15,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Brain, Sparkles, Loader2 } from "lucide-react";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
+import { Brain, Sparkles, Loader2, BookOpen, ArrowRight } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 
 type Concept = {
@@ -41,6 +43,8 @@ export const MindMapTab = ({ lectureId }: { lectureId: string }) => {
   const [lecture, setLecture] = useState<Lecture | null>(null);
   const [loading, setLoading] = useState(true);
   const [clustering, setClustering] = useState(false);
+  const [selectedConcept, setSelectedConcept] = useState<Concept | null>(null);
+  const [generatingQuiz, setGeneratingQuiz] = useState(false);
 
   const load = useCallback(async () => {
     const [{ data: c }, { data: l }] = await Promise.all([
@@ -75,6 +79,40 @@ export const MindMapTab = ({ lectureId }: { lectureId: string }) => {
       });
     } finally {
       setClustering(false);
+    }
+  };
+
+  const onNodeClick: NodeMouseHandler = useCallback(
+    (_e, node) => {
+      if (node.id === "root" || node.id.startsWith("cluster-")) return;
+      const c = concepts.find((x) => x.id === node.id);
+      if (c) setSelectedConcept(c);
+    },
+    [concepts],
+  );
+
+  const quizMeOnConcept = async () => {
+    if (!selectedConcept) return;
+    setGeneratingQuiz(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("generate-quiz", {
+        body: { lectureId, numQuestions: 5, focusTopic: selectedConcept.term },
+      });
+      if (error) throw error;
+      if ((data as any)?.error) throw new Error((data as any).error);
+      toast({
+        title: "Focused quiz ready! 🎯",
+        description: `Open the Quiz tab to start "${selectedConcept.term}".`,
+      });
+      setSelectedConcept(null);
+    } catch (e: any) {
+      toast({
+        title: "Couldn't generate quiz",
+        description: e?.message ?? "Try again in a moment.",
+        variant: "destructive",
+      });
+    } finally {
+      setGeneratingQuiz(false);
     }
   };
 
@@ -278,6 +316,7 @@ export const MindMapTab = ({ lectureId }: { lectureId: string }) => {
   }
 
   return (
+    <>
     <Card className="overflow-hidden rounded-3xl border-border/50 shadow-card">
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/50 bg-gradient-cream px-5 py-3">
         <div className="flex items-center gap-2">
@@ -290,6 +329,8 @@ export const MindMapTab = ({ lectureId }: { lectureId: string }) => {
               {concepts.length} concepts
               {hasClusters && ` · ${clusterOrder.length} clusters`}
               {coMentionEdges.length > 0 && ` · ${coMentionEdges.length} links`}
+              {" · "}
+              <span className="text-ai font-medium">click any node for details</span>
             </p>
           </div>
         </div>
@@ -329,6 +370,7 @@ export const MindMapTab = ({ lectureId }: { lectureId: string }) => {
           fitViewOptions={{ padding: 0.25 }}
           minZoom={0.2}
           maxZoom={2}
+          onNodeClick={onNodeClick}
           proOptions={{ hideAttribution: true }}
         >
           <Background color="hsl(var(--border))" gap={20} />
@@ -343,5 +385,69 @@ export const MindMapTab = ({ lectureId }: { lectureId: string }) => {
         </ReactFlow>
       </div>
     </Card>
+
+    <Sheet open={!!selectedConcept} onOpenChange={(o) => !o && setSelectedConcept(null)}>
+      <SheetContent className="w-full overflow-y-auto sm:max-w-md">
+        {selectedConcept && (() => {
+          const cl = selectedConcept.cluster ?? "Other";
+          const palette = clusterColor[cl] ?? CLUSTER_PALETTE[0];
+          return (
+            <>
+              <SheetHeader className="text-left">
+                <div className="mb-3 flex items-center gap-2">
+                  {selectedConcept.cluster && (
+                    <span
+                      className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide"
+                      style={{ background: palette.bg, color: palette.color, border: `1px solid ${palette.border}` }}
+                    >
+                      <span className="h-1.5 w-1.5 rounded-full" style={{ background: palette.border }} />
+                      {cl}
+                    </span>
+                  )}
+                  {selectedConcept.kind && (
+                    <span className="rounded-full bg-muted px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide text-muted-foreground">
+                      {selectedConcept.kind}
+                    </span>
+                  )}
+                </div>
+                <SheetTitle className="font-display text-2xl font-extrabold leading-tight">
+                  {selectedConcept.term}
+                </SheetTitle>
+                {!selectedConcept.definition && (
+                  <SheetDescription>No definition recorded for this concept yet.</SheetDescription>
+                )}
+              </SheetHeader>
+
+              {selectedConcept.definition && (
+                <div className="mt-5 rounded-2xl border border-border/60 bg-card p-4">
+                  <div className="mb-2 flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-ai">
+                    <BookOpen className="h-3.5 w-3.5" /> Definition
+                  </div>
+                  <p className="text-sm leading-relaxed text-foreground/90">{selectedConcept.definition}</p>
+                </div>
+              )}
+
+              <Button
+                onClick={quizMeOnConcept}
+                disabled={generatingQuiz}
+                size="lg"
+                className="mt-6 w-full rounded-full bg-gradient-hero text-white shadow-playful hover:opacity-90"
+              >
+                {generatingQuiz ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <Sparkles className="mr-2 h-4 w-4" />
+                )}
+                Quiz me on this <ArrowRight className="ml-1.5 h-4 w-4" />
+              </Button>
+              <p className="mt-2 text-center text-xs text-muted-foreground">
+                Generates a focused 5-question MCQ in the Quiz tab
+              </p>
+            </>
+          );
+        })()}
+      </SheetContent>
+    </Sheet>
+    </>
   );
 };

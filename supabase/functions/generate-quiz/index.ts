@@ -33,6 +33,7 @@ Deno.serve(async (req) => {
     const body = await req.json().catch(() => ({}));
     const lectureId = body?.lectureId;
     const numQuestions = Math.min(Math.max(Number(body?.numQuestions) || 8, 3), 15);
+    const focusTopic = typeof body?.focusTopic === "string" ? body.focusTopic.trim().slice(0, 120) : "";
     if (!lectureId || typeof lectureId !== "string") {
       return new Response(JSON.stringify({ error: "lectureId required" }), {
         status: 400,
@@ -94,7 +95,9 @@ Deno.serve(async (req) => {
           },
           {
             role: "user",
-            content: `Generate ${numQuestions} multiple-choice questions for the lecture titled "${lecture.title}".\n\nLECTURE MATERIAL:\n${context}`,
+            content: focusTopic
+              ? `Generate ${numQuestions} multiple-choice questions for the lecture titled "${lecture.title}", FOCUSED specifically on the topic/concept: "${focusTopic}". Every question must directly relate to that topic. Set the "topic" field on each question to "${focusTopic}".\n\nLECTURE MATERIAL:\n${context}`
+              : `Generate ${numQuestions} multiple-choice questions for the lecture titled "${lecture.title}".\n\nLECTURE MATERIAL:\n${context}`,
           },
         ],
         tools: [
@@ -165,7 +168,7 @@ Deno.serve(async (req) => {
       .insert({
         user_id: userId,
         lecture_id: lectureId,
-        title: `Quiz · ${new Date().toLocaleDateString()}`,
+        title: focusTopic ? `Focused: ${focusTopic}` : `Quiz · ${new Date().toLocaleDateString()}`,
         questions,
         question_count: questions.length,
       })
