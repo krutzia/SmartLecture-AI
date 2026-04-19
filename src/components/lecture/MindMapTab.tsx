@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   ReactFlow,
   Background,
@@ -39,6 +40,7 @@ const CLUSTER_PALETTE: { bg: string; border: string; color: string; ring: string
 ];
 
 export const MindMapTab = ({ lectureId }: { lectureId: string }) => {
+  const navigate = useNavigate();
   const [concepts, setConcepts] = useState<Concept[]>([]);
   const [lecture, setLecture] = useState<Lecture | null>(null);
   const [loading, setLoading] = useState(true);
@@ -102,9 +104,12 @@ export const MindMapTab = ({ lectureId }: { lectureId: string }) => {
       if ((data as any)?.error) throw new Error((data as any).error);
       toast({
         title: "Focused quiz ready! 🎯",
-        description: `Open the Quiz tab to start "${selectedConcept.term}".`,
+        description: `Jumping to your "${selectedConcept.term}" quiz...`,
       });
+      const conceptName = selectedConcept.term;
       setSelectedConcept(null);
+      // Auto-jump to Quiz tab
+      navigate(`/lecture/${lectureId}?tab=quiz`, { replace: false, state: { focusTopic: conceptName } });
     } catch (e: any) {
       toast({
         title: "Couldn't generate quiz",
