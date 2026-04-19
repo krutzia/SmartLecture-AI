@@ -259,6 +259,69 @@ Deno.serve(async (req) => {
       );
     }
 
+    // Step 3: auto-generate the first quiz so users see it ready
+    try {
+      const quizResp = await aiCall({
+        model: DEFAULT_MODEL,
+        messages: [
+          {
+            role: "system",
+            content:
+              "You are an expert teacher. Create rigorous but fair multiple-choice quiz questions strictly grounded in the provided lecture material. Each question must have exactly 4 options with one clearly correct answer. Vary difficulty. Always include a brief explanation citing the material.",
+          },
+          {
+            role: "user",
+            content: `Generate 8 multiple-choice questions for the lecture titled "${lecture.title}".\n\nLECTURE MATERIAL:\n${truncated}`,
+          },
+        ],
+        tools: [{
+          type: "function",
+          function: {
+            name: "submit_quiz",
+            description: "Return a multiple-choice quiz",
+            parameters: {
+              type: "object",
+              properties: {
+                questions: {
+                  type: "array",
+                  items: {
+                    type: "object",
+                    properties: {
+                      question: { type: "string" },
+                      topic: { type: "string", description: "Short 1-3 word topic label" },
+                      options: { type: "array", items: { type: "string" }, minItems: 4, maxItems: 4 },
+                      correct_index: { type: "integer", minimum: 0, maximum: 3 },
+                      explanation: { type: "string" },
+                    },
+                    required: ["question", "topic", "options", "correct_index", "explanation"],
+                    additionalProperties: false,
+                  },
+                },
+              },
+              required: ["questions"],
+              additionalProperties: false,
+            },
+          },
+        }],
+        tool_choice: { type: "function", function: { name: "submit_quiz" } },
+      }, LOVABLE_API_KEY);
+      const quizArgs = JSON.parse(quizResp.choices[0].message.tool_calls[0].function.arguments);
+      const validQs = (quizArgs.questions ?? []).filter(
+        (q: any) => q && Array.isArray(q.options) && q.options.length === 4 && Number.isInteger(q.correct_index),
+      );
+      if (validQs.length > 0) {
+        await admin.from("quizzes").insert({
+          user_id: userId,
+          lecture_id: lectureId,
+          title: "Starter quiz",
+          questions: validQs,
+          question_count: validQs.length,
+        });
+      }
+    } catch (qErr) {
+      console.error("auto-quiz generation failed (non-fatal):", qErr);
+    }
+
     await admin.from("lectures").update({ status: "done" }).eq("id", lectureId);
 
     return new Response(JSON.stringify({ ok: true }), {
