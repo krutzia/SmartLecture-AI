@@ -1,6 +1,6 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
-import { Copy, Check } from "lucide-react";
+import { Copy, Check, Volume2, Pause, Square } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -9,10 +9,24 @@ import { toast } from "@/hooks/use-toast";
 
 type Summary = { quick: string | null; detailed: string | null; bullets: string[]; takeaways: string[] };
 
+// Strip markdown so TTS sounds clean
+const stripMarkdown = (md: string) =>
+  md
+    .replace(/```[\s\S]*?```/g, "")
+    .replace(/`([^`]+)`/g, "$1")
+    .replace(/!\[[^\]]*\]\([^)]+\)/g, "")
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
+    .replace(/[#>*_~]+/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+
 export const SummaryTab = ({ lectureId }: { lectureId: string }) => {
   const [summary, setSummary] = useState<Summary | null>(null);
   const [loading, setLoading] = useState(true);
   const [copied, setCopied] = useState<string | null>(null);
+  const [speechState, setSpeechState] = useState<"idle" | "playing" | "paused">("idle");
+  const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
+  const ttsSupported = typeof window !== "undefined" && "speechSynthesis" in window;
 
   useEffect(() => {
     const load = async () => {
@@ -23,6 +37,13 @@ export const SummaryTab = ({ lectureId }: { lectureId: string }) => {
     load();
   }, [lectureId]);
 
+  // Stop speech on unmount or lecture change
+  useEffect(() => {
+    return () => {
+      if (ttsSupported) window.speechSynthesis.cancel();
+    };
+  }, [lectureId, ttsSupported]);
+
   const copy = (key: string, text: string) => {
     navigator.clipboard.writeText(text);
     setCopied(key);
@@ -30,17 +51,57 @@ export const SummaryTab = ({ lectureId }: { lectureId: string }) => {
     setTimeout(() => setCopied(null), 1500);
   };
 
+  const handleListen = () => {
+    if (!ttsSupported || !summary?.quick) return;
+    const synth = window.speechSynthesis;
+
+    if (speechState === "playing") {
+      synth.pause();
+      setSpeechState("paused");
+      return;
+    }
+    if (speechState === "paused") {
+      synth.resume();
+      setSpeechState("playing");
+      return;
+    }
+
+    synth.cancel();
+    const utter = new SpeechSynthesisUtterance(stripMarkdown(summary.quick));
+    utter.rate = 1;
+    utter.pitch = 1;
+    // Prefer an English voice if available
+    const voices = synth.getVoices();
+    const preferred = voices.find((v) => /en[-_]/i.test(v.lang) && /female|samantha|google/i.test(v.name)) ||
+      voices.find((v) => /en[-_]/i.test(v.lang)) || voices[0];
+    if (preferred) utter.voice = preferred;
+    utter.onend = () => setSpeechState("idle");
+    utter.onerror = () => setSpeechState("idle");
+    utteranceRef.current = utter;
+    synth.speak(utter);
+    setSpeechState("playing");
+  };
+
+  const handleStop = () => {
+    if (!ttsSupported) return;
+    window.speechSynthesis.cancel();
+    setSpeechState("idle");
+  };
+
   if (loading) return <Skeleton className="h-96 rounded-3xl" />;
   if (!summary) return <Card className="rounded-3xl p-8 text-center text-muted-foreground">No summary yet.</Card>;
 
-  const Section = ({ title, text, copyKey }: { title: string; text: string; copyKey: string }) => (
+  const Section = ({ title, text, copyKey, children }: { title: string; text: string; copyKey: string; children?: React.ReactNode }) => (
     <Card className="rounded-3xl border-border/50 p-6 shadow-card">
-      <div className="mb-3 flex items-center justify-between">
+      <div className="mb-3 flex items-center justify-between gap-2">
         <h3 className="font-display text-xl font-extrabold">{title}</h3>
-        <Button variant="ghost" size="sm" onClick={() => copy(copyKey, text)} className="gap-1.5">
-          {copied === copyKey ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
-          Copy
-        </Button>
+        <div className="flex items-center gap-1.5">
+          {children}
+          <Button variant="ghost" size="sm" onClick={() => copy(copyKey, text)} className="gap-1.5">
+            {copied === copyKey ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+            Copy
+          </Button>
+        </div>
       </div>
       <div className="prose prose-sm max-w-none prose-headings:font-display prose-headings:font-extrabold prose-p:text-foreground/90 prose-li:text-foreground/90 prose-strong:text-foreground">
         <ReactMarkdown>{text}</ReactMarkdown>
@@ -50,7 +111,34 @@ export const SummaryTab = ({ lectureId }: { lectureId: string }) => {
 
   return (
     <div className="space-y-6">
-      {summary.quick && <Section title="✨ Quick summary" text={summary.quick} copyKey="quick" />}
+      {summary.quick && (
+        <Section title="✨ Quick summary" text={summary.quick} copyKey="quick">
+          {ttsSupported && (
+            <>
+              <Button
+                variant={speechState === "idle" ? "outline" : "default"}
+                size="sm"
+                onClick={handleListen}
+                className="gap-1.5 rounded-full"
+                aria-label={speechState === "playing" ? "Pause" : "Listen"}
+              >
+                {speechState === "playing" ? (
+                  <><Pause className="h-3.5 w-3.5" /> Pause</>
+                ) : speechState === "paused" ? (
+                  <><Volume2 className="h-3.5 w-3.5" /> Resume</>
+                ) : (
+                  <><Volume2 className="h-3.5 w-3.5" /> Listen</>
+                )}
+              </Button>
+              {speechState !== "idle" && (
+                <Button variant="ghost" size="sm" onClick={handleStop} className="gap-1.5" aria-label="Stop">
+                  <Square className="h-3.5 w-3.5" />
+                </Button>
+              )}
+            </>
+          )}
+        </Section>
+      )}
       {summary.bullets?.length > 0 && (
         <Section title="💡 Bullet points" text={summary.bullets.map((b) => `- ${b}`).join("\n")} copyKey="bullets" />
       )}
