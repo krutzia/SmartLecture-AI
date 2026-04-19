@@ -3,18 +3,48 @@ import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
-import { LogOut } from "lucide-react";
+import { LogOut, Search } from "lucide-react";
+import { GlobalCommandPalette } from "@/components/GlobalCommandPalette";
 
 export const AppLayout = () => {
   const { user, signOut } = useAuth();
+  const isMac = typeof navigator !== "undefined" && /Mac|iPod|iPhone|iPad/.test(navigator.platform);
+
+  const openPalette = () => {
+    // Dispatch a Cmd/Ctrl+K keydown to toggle the palette
+    const ev = new KeyboardEvent("keydown", { key: "k", metaKey: isMac, ctrlKey: !isMac, bubbles: true });
+    window.dispatchEvent(ev);
+  };
+
   return (
     <SidebarProvider>
+      <GlobalCommandPalette />
       <div className="flex min-h-screen w-full bg-gradient-cream">
         <AppSidebar />
         <div className="flex flex-1 flex-col">
-          <header className="flex h-14 items-center justify-between border-b border-border/50 bg-background/70 px-4 backdrop-blur">
+          <header className="flex h-14 items-center justify-between gap-3 border-b border-border/50 bg-background/70 px-4 backdrop-blur">
             <SidebarTrigger />
+            <button
+              onClick={openPalette}
+              className="hidden flex-1 max-w-md items-center gap-2 rounded-full border border-border/60 bg-background/60 px-3.5 py-1.5 text-left text-sm text-muted-foreground transition hover:border-primary/40 hover:bg-background sm:flex"
+              aria-label="Open command palette"
+            >
+              <Search className="h-3.5 w-3.5" />
+              <span>Search lectures, concepts, cards...</span>
+              <kbd className="ml-auto rounded-md border border-border/70 bg-muted px-1.5 py-0.5 font-mono text-[10px] font-bold">
+                {isMac ? "⌘K" : "Ctrl K"}
+              </kbd>
+            </button>
             <div className="flex items-center gap-3">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={openPalette}
+                className="sm:hidden"
+                aria-label="Search"
+              >
+                <Search className="h-4 w-4" />
+              </Button>
               <span className="hidden text-sm text-muted-foreground sm:inline">{user?.email}</span>
               <Button variant="ghost" size="sm" onClick={signOut} className="gap-2">
                 <LogOut className="h-4 w-4" />
