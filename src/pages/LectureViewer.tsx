@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useParams, Link } from "react-router-dom";
+import { useParams, Link, useSearchParams } from "react-router-dom";
 import { motion } from "framer-motion";
 import { ArrowLeft, FileText, Sparkles, Lightbulb, Layers, MessageCircle, Loader2, AlertCircle, Network, ListChecks } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -16,10 +16,32 @@ import { QuizTab } from "@/components/lecture/QuizTab";
 
 type Lecture = { id: string; title: string; status: string; source_type: string; error_message: string | null };
 
+const VALID_TABS = ["summary", "concepts", "mindmap", "flashcards", "quiz", "transcript", "chat"];
+
 const LectureViewer = () => {
   const { id } = useParams<{ id: string }>();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const tabParam = searchParams.get("tab");
+  const initialTab = tabParam && VALID_TABS.includes(tabParam) ? tabParam : "summary";
+  const [activeTab, setActiveTab] = useState<string>(initialTab);
   const [lecture, setLecture] = useState<Lecture | null>(null);
   const [loading, setLoading] = useState(true);
+
+  // Sync ?tab= param → state (e.g. Mind Map → quiz jump)
+  useEffect(() => {
+    if (tabParam && VALID_TABS.includes(tabParam) && tabParam !== activeTab) {
+      setActiveTab(tabParam);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tabParam]);
+
+  const handleTabChange = (v: string) => {
+    setActiveTab(v);
+    const next = new URLSearchParams(searchParams);
+    if (v === "summary") next.delete("tab");
+    else next.set("tab", v);
+    setSearchParams(next, { replace: true });
+  };
 
   useEffect(() => {
     if (!id) return;
@@ -116,7 +138,7 @@ const LectureViewer = () => {
       )}
 
       {lecture.status === "done" && (
-        <Tabs defaultValue="summary" className="mt-6">
+        <Tabs value={activeTab} onValueChange={handleTabChange} className="mt-6">
           <TabsList className="grid w-full grid-cols-4 rounded-full bg-muted p-1 sm:grid-cols-7">
             <TabsTrigger value="summary" className="rounded-full gap-1.5"><Sparkles className="h-3.5 w-3.5" /> Summary</TabsTrigger>
             <TabsTrigger value="concepts" className="rounded-full gap-1.5"><Lightbulb className="h-3.5 w-3.5" /> Concepts</TabsTrigger>
