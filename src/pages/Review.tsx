@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import { ArrowLeft, RotateCw, Zap, Target, Smile, Trophy, Layers, Sparkles, Keyboard } from "lucide-react";
