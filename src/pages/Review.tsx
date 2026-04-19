@@ -238,7 +238,7 @@ const Review = () => {
           <Card className="absolute inset-0 flex flex-col items-center justify-center rounded-3xl border-2 border-primary/20 bg-gradient-cream p-8 text-center shadow-playful backface-hidden">
             <span className="mb-4 rounded-full bg-primary-soft px-3 py-1 text-xs font-bold uppercase tracking-wide text-primary">Question</span>
             <p className="font-display text-xl font-bold md:text-2xl">{card.question}</p>
-            <p className="mt-6 text-xs text-muted-foreground">Tap to flip</p>
+            <p className="mt-6 text-xs text-muted-foreground">Tap or press Space to flip</p>
           </Card>
           <Card className="absolute inset-0 flex flex-col items-center justify-center rounded-3xl border-2 border-ai/20 bg-ai-soft p-8 text-center shadow-playful backface-hidden rotate-y-180">
             <span className="mb-4 rounded-full bg-ai px-3 py-1 text-xs font-bold uppercase tracking-wide text-ai-foreground">Answer</span>
@@ -251,20 +251,35 @@ const Review = () => {
         <div className="mt-6 grid grid-cols-2 gap-2 sm:grid-cols-4">
           <Button onClick={() => review(QUALITY.AGAIN)} variant="outline" className="rounded-2xl gap-1.5 border-destructive/40 text-destructive hover:bg-destructive/10">
             <RotateCw className="h-3.5 w-3.5" /> Again
+            <kbd className="ml-1 rounded bg-destructive/15 px-1.5 py-0.5 text-[10px] font-bold">1</kbd>
           </Button>
           <Button onClick={() => review(QUALITY.HARD)} variant="outline" className="rounded-2xl gap-1.5 border-highlight/50 text-accent-foreground hover:bg-accent">
             <Target className="h-3.5 w-3.5" /> Hard
+            <kbd className="ml-1 rounded bg-accent px-1.5 py-0.5 text-[10px] font-bold">2</kbd>
           </Button>
           <Button onClick={() => review(QUALITY.GOOD)} variant="outline" className="rounded-2xl gap-1.5 border-primary/40 text-primary hover:bg-primary-soft">
             <Smile className="h-3.5 w-3.5" /> Good
+            <kbd className="ml-1 rounded bg-primary-soft px-1.5 py-0.5 text-[10px] font-bold">3</kbd>
           </Button>
           <Button onClick={() => review(QUALITY.EASY)} className="rounded-2xl gap-1.5 bg-success text-success-foreground hover:bg-success/90">
             <Zap className="h-3.5 w-3.5" /> Easy
+            <kbd className="ml-1 rounded bg-success-foreground/20 px-1.5 py-0.5 text-[10px] font-bold">4</kbd>
           </Button>
         </div>
       ) : (
         <p className="mt-6 text-center text-sm text-muted-foreground">Flip the card, then grade your recall</p>
       )}
+
+      <div className="mt-4 flex items-center justify-center gap-2 text-[11px] text-muted-foreground">
+        <Keyboard className="h-3.5 w-3.5" />
+        <span>
+          <kbd className="rounded bg-muted px-1.5 py-0.5 font-mono text-[10px]">Space</kbd> flip ·
+          <kbd className="ml-1 rounded bg-muted px-1.5 py-0.5 font-mono text-[10px]">1</kbd>
+          <kbd className="ml-1 rounded bg-muted px-1.5 py-0.5 font-mono text-[10px]">2</kbd>
+          <kbd className="ml-1 rounded bg-muted px-1.5 py-0.5 font-mono text-[10px]">3</kbd>
+          <kbd className="ml-1 rounded bg-muted px-1.5 py-0.5 font-mono text-[10px]">4</kbd> grade
+        </span>
+      </div>
     </div>
   );
 };
