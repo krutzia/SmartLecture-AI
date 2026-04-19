@@ -20,6 +20,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { StudyHeatmap } from "@/components/StudyHeatmap";
+import { WeakTopicCoach } from "@/components/WeakTopicCoach";
 
 type Session = { minutes: number; created_at: string; activity: string };
 type Attempt = { topic: string | null; correct: boolean; created_at: string };
@@ -178,6 +179,11 @@ const Analytics = () => {
       {/* Heatmap calendar */}
       <div className="mt-6">
         <StudyHeatmap sessions={sessions} weeks={12} />
+      </div>
+
+      {/* AI weak topic coach */}
+      <div className="mt-6">
+        <WeakTopicCoach />
       </div>
 
       {/* Charts */}
