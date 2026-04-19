@@ -1,7 +1,7 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
-import { ArrowLeft, RotateCw, Zap, Target, Smile, Trophy, Layers, Sparkles } from "lucide-react";
+import { ArrowLeft, RotateCw, Zap, Target, Smile, Trophy, Layers, Sparkles, Keyboard } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -55,7 +55,7 @@ const Review = () => {
   const lectureTitle = card ? lectures.get(card.lecture_id) ?? "Lecture" : "";
   const progress = stats.total > 0 ? (stats.reviewed / stats.total) * 100 : 0;
 
-  const review = async (quality: number) => {
+  const review = useCallback(async (quality: number) => {
     if (!card) return;
     const result = sm2(
       { ease_factor: card.ease_factor, interval_days: card.interval_days, repetitions: card.repetitions },
@@ -101,7 +101,43 @@ const Review = () => {
     }));
     setFlipped(false);
     setIdx((i) => i + 1);
-  };
+  }, [card]);
+
+  // Keyboard shortcuts: Space = flip, 1-4 = Again/Hard/Good/Easy
+  useEffect(() => {
+    if (!card) return;
+    const handler = (e: KeyboardEvent) => {
+      if (e.target && (e.target as HTMLElement).matches("input, textarea, [contenteditable=true]")) return;
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+
+      if (e.code === "Space" || e.key === " ") {
+        e.preventDefault();
+        setFlipped((f) => !f);
+        return;
+      }
+      if (!flipped) return;
+      switch (e.key) {
+        case "1":
+          e.preventDefault();
+          review(QUALITY.AGAIN);
+          break;
+        case "2":
+          e.preventDefault();
+          review(QUALITY.HARD);
+          break;
+        case "3":
+          e.preventDefault();
+          review(QUALITY.GOOD);
+          break;
+        case "4":
+          e.preventDefault();
+          review(QUALITY.EASY);
+          break;
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [card, flipped, review]);
 
   if (loading) {
     return (
