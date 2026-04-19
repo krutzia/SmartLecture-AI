@@ -98,8 +98,8 @@ export const DueTodayWidget = () => {
         ))}
       </div>
       {byLecture.length > 0 && (
-        <Button asChild variant="ghost" size="sm" className="mt-3 w-full rounded-full">
-          <Link to={`/lecture/${byLecture[0].id}`}>Start reviewing →</Link>
+        <Button asChild size="sm" className="mt-4 w-full rounded-full bg-gradient-hero text-white shadow-playful hover:opacity-90">
+          <Link to="/review">Start daily review →</Link>
         </Button>
       )}
     </Card>

@@ -14,6 +14,7 @@ import Library from "./pages/Library";
 import LectureViewer from "./pages/LectureViewer";
 import Analytics from "./pages/Analytics";
 import Settings from "./pages/Settings";
+import Review from "./pages/Review";
 import NotFound from "./pages/NotFound.tsx";
 
 const queryClient = new QueryClient();
@@ -35,6 +36,7 @@ const App = () => (
               <Route path="/lecture/:id" element={<LectureViewer />} />
               <Route path="/analytics" element={<Analytics />} />
               <Route path="/settings" element={<Settings />} />
+              <Route path="/review" element={<Review />} />
             </Route>
             <Route path="*" element={<NotFound />} />
           </Routes>

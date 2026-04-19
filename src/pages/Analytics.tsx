@@ -19,6 +19,7 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { StudyHeatmap } from "@/components/StudyHeatmap";
 
 type Session = { minutes: number; created_at: string; activity: string };
 type Attempt = { topic: string | null; correct: boolean; created_at: string };
@@ -33,7 +34,7 @@ const Analytics = () => {
   useEffect(() => {
     const load = async () => {
       const since = new Date();
-      since.setDate(since.getDate() - 30);
+      since.setDate(since.getDate() - 90);
       const sinceIso = since.toISOString();
       const [{ data: s }, { data: a }] = await Promise.all([
         supabase.from("study_sessions").select("minutes,created_at,activity").gte("created_at", sinceIso),
@@ -172,6 +173,11 @@ const Analytics = () => {
             </Card>
           </motion.div>
         ))}
+      </div>
+
+      {/* Heatmap calendar */}
+      <div className="mt-6">
+        <StudyHeatmap sessions={sessions} weeks={12} />
       </div>
 
       {/* Charts */}
