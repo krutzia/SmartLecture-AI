@@ -1,11 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { BookOpen, Search, Upload, Clock, CheckCircle2, AlertCircle, Loader2 } from "lucide-react";
+import { BookOpen, Search, Upload, Clock, CheckCircle2, AlertCircle, Loader2, Pin } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useAuth } from "@/contexts/AuthContext";
+import { getPinned } from "@/lib/palettePrefs";
 
 type Lecture = { id: string; title: string; status: string; source_type: string; created_at: string };
 
@@ -19,9 +21,11 @@ const statusBadge: Record<string, { label: string; cls: string; Icon: any }> = {
 };
 
 const Library = () => {
+  const { user } = useAuth();
   const [lectures, setLectures] = useState<Lecture[]>([]);
   const [loading, setLoading] = useState(true);
   const [q, setQ] = useState("");
+  const [pinnedIds, setPinnedIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     const load = async () => {
@@ -34,10 +38,28 @@ const Library = () => {
     return () => { supabase.removeChannel(ch); };
   }, []);
 
-  const filtered = useMemo(
-    () => lectures.filter((l) => l.title.toLowerCase().includes(q.toLowerCase())),
-    [lectures, q],
-  );
+  // Refresh pinned set from localStorage on focus / when user changes
+  useEffect(() => {
+    if (!user) { setPinnedIds(new Set()); return; }
+    const refresh = () => setPinnedIds(new Set(getPinned(user.id)));
+    refresh();
+    window.addEventListener("focus", refresh);
+    window.addEventListener("storage", refresh);
+    return () => {
+      window.removeEventListener("focus", refresh);
+      window.removeEventListener("storage", refresh);
+    };
+  }, [user]);
+
+  // Pinned first, then by created_at desc (already sorted)
+  const filtered = useMemo(() => {
+    const matched = lectures.filter((l) => l.title.toLowerCase().includes(q.toLowerCase()));
+    return [...matched].sort((a, b) => {
+      const ap = pinnedIds.has(a.id) ? 1 : 0;
+      const bp = pinnedIds.has(b.id) ? 1 : 0;
+      return bp - ap;
+    });
+  }, [lectures, q, pinnedIds]);
 
   return (
     <div className="container max-w-6xl py-8">
@@ -69,9 +91,22 @@ const Library = () => {
         {!loading && filtered.map((l) => {
           const badge = statusBadge[l.status] ?? statusBadge.done;
           const isProcessing = !["done", "error"].includes(l.status);
+          const pinned = pinnedIds.has(l.id);
           return (
             <Link key={l.id} to={`/lecture/${l.id}`}>
-              <Card className="group h-full cursor-pointer rounded-3xl border-border/50 p-6 shadow-card transition-all hover:-translate-y-1 hover:shadow-playful">
+              <Card
+                className={`group relative h-full cursor-pointer rounded-3xl p-6 shadow-card transition-all hover:-translate-y-1 hover:shadow-playful ${
+                  pinned ? "border-highlight/60 ring-1 ring-highlight/30" : "border-border/50"
+                }`}
+              >
+                {pinned && (
+                  <span
+                    className="absolute -top-2 -left-2 inline-flex items-center gap-1 rounded-full bg-highlight px-2 py-0.5 text-xs font-bold text-highlight-foreground shadow-playful"
+                    title="Pinned in Cmd+K"
+                  >
+                    <Pin className="h-3 w-3 fill-current" /> Pinned
+                  </span>
+                )}
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-accent text-accent-foreground">
                     <BookOpen className="h-5 w-5" />
