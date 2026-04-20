@@ -49,6 +49,14 @@ const LectureViewer = () => {
       const { data } = await supabase.from("lectures").select("id,title,status,source_type,error_message").eq("id", id).maybeSingle();
       setLecture(data);
       setLoading(false);
+      // Record this lecture as a recent visit for the Cmd+K palette.
+      if (data?.status === "done") {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          const { pushRecent } = await import("@/lib/palettePrefs");
+          pushRecent(user.id, data.id);
+        }
+      }
     };
     load();
     const ch = supabase.channel(`lecture-${id}`).on("postgres_changes", { event: "UPDATE", schema: "public", table: "lectures", filter: `id=eq.${id}` }, load).subscribe();

@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { useLocation } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { Sparkles, Check, X, RotateCw, Loader2, Trophy, Brain } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -20,6 +21,9 @@ type Question = {
 type Quiz = { id: string; title: string; questions: Question[]; question_count: number; created_at: string };
 
 export const QuizTab = ({ lectureId }: { lectureId: string }) => {
+  const location = useLocation();
+  const focusTopic: string | undefined = (location.state as any)?.focusTopic;
+  const autoStartedRef = useRef<string | null>(null);
   const [quizzes, setQuizzes] = useState<Quiz[]>([]);
   const [activeQuiz, setActiveQuiz] = useState<Quiz | null>(null);
   const [loading, setLoading] = useState(true);
@@ -41,6 +45,23 @@ export const QuizTab = ({ lectureId }: { lectureId: string }) => {
     };
     load();
   }, [lectureId]);
+
+  // Auto-start the most recent quiz matching the focusTopic from the Mind Map.
+  // Guarded by autoStartedRef so we don't restart after the user navigates
+  // back to the quiz list within the same session.
+  useEffect(() => {
+    if (!focusTopic || loading || quizzes.length === 0) return;
+    const key = `${lectureId}::${focusTopic}`;
+    if (autoStartedRef.current === key) return;
+
+    const expectedTitle = `Focused: ${focusTopic}`;
+    const focused = quizzes.find((q) => q.title === expectedTitle) ?? quizzes[0];
+    if (focused) {
+      autoStartedRef.current = key;
+      startQuiz(focused);
+      toast({ title: `Starting focused quiz`, description: focusTopic });
+    }
+  }, [focusTopic, loading, quizzes, lectureId]);
 
   const startQuiz = (quiz: Quiz) => {
     setActiveQuiz(quiz);
