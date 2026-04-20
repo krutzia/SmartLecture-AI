@@ -182,29 +182,31 @@ export const SummaryTab = ({ lectureId }: { lectureId: string }) => {
     <div className="space-y-6">
       {summary.quick && (
         <Section title="✨ Quick summary" text={summary.quick} copyKey="quick">
-          {ttsSupported && (
-            <>
-              <Button
-                variant={speechState === "idle" ? "outline" : "default"}
-                size="sm"
-                onClick={handleListen}
-                className="gap-1.5 rounded-full"
-                aria-label={speechState === "playing" ? "Pause" : "Listen"}
-              >
-                {speechState === "playing" ? (
-                  <><Pause className="h-3.5 w-3.5" /> Pause</>
-                ) : speechState === "paused" ? (
-                  <><Volume2 className="h-3.5 w-3.5" /> Resume</>
-                ) : (
-                  <><Volume2 className="h-3.5 w-3.5" /> Listen</>
-                )}
-              </Button>
-              {speechState !== "idle" && (
-                <Button variant="ghost" size="sm" onClick={handleStop} className="gap-1.5" aria-label="Stop">
-                  <Square className="h-3.5 w-3.5" />
-                </Button>
-              )}
-            </>
+          <Button
+            variant={speechState === "idle" ? "outline" : "default"}
+            size="sm"
+            onClick={handleListen}
+            disabled={speechState === "loading"}
+            className="gap-1.5 rounded-full"
+            aria-label={speechState === "playing" ? "Pause" : "Listen"}
+          >
+            {speechState === "loading" ? (
+              <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Loading</>
+            ) : speechState === "playing" ? (
+              <><Pause className="h-3.5 w-3.5" /> Pause</>
+            ) : speechState === "paused" ? (
+              <><Volume2 className="h-3.5 w-3.5" /> Resume</>
+            ) : (
+              <>
+                <Volume2 className="h-3.5 w-3.5" /> Listen
+                {usingElevenLabs && <Sparkles className="h-3 w-3 text-ai" />}
+              </>
+            )}
+          </Button>
+          {speechState !== "idle" && speechState !== "loading" && (
+            <Button variant="ghost" size="sm" onClick={handleStop} className="gap-1.5" aria-label="Stop">
+              <Square className="h-3.5 w-3.5" />
+            </Button>
           )}
         </Section>
       )}
