@@ -1,6 +1,20 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { BookMarked, Lightbulb, Layers, Search, ArrowRight, LayoutDashboard, Upload as UploadIcon, BarChart3, Settings as SettingsIcon, ListChecks, FileText } from "lucide-react";
+import {
+  BookMarked,
+  Lightbulb,
+  Layers,
+  ArrowRight,
+  LayoutDashboard,
+  Upload as UploadIcon,
+  BarChart3,
+  Settings as SettingsIcon,
+  ListChecks,
+  Pin,
+  PinOff,
+  Clock,
+  Star,
+} from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import {
   CommandDialog,
@@ -12,6 +26,13 @@ import {
   CommandSeparator,
 } from "@/components/ui/command";
 import { useAuth } from "@/contexts/AuthContext";
+import { Button } from "@/components/ui/button";
+import { toast } from "@/hooks/use-toast";
+import {
+  getRecent,
+  getPinned,
+  togglePinned,
+} from "@/lib/palettePrefs";
 
 type Lecture = { id: string; title: string };
 type Concept = { id: string; term: string; lecture_id: string; definition: string | null };
@@ -32,6 +53,8 @@ export const GlobalCommandPalette = () => {
   const [concepts, setConcepts] = useState<Concept[]>([]);
   const [flashcards, setFlashcards] = useState<Flashcard[]>([]);
   const [loaded, setLoaded] = useState(false);
+  const [recentIds, setRecentIds] = useState<string[]>([]);
+  const [pinnedIds, setPinnedIds] = useState<string[]>([]);
   const navigate = useNavigate();
   const { user } = useAuth();
 
@@ -46,6 +69,13 @@ export const GlobalCommandPalette = () => {
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, []);
+
+  // Refresh recents/pinned from localStorage every time the palette opens
+  useEffect(() => {
+    if (!open || !user) return;
+    setRecentIds(getRecent(user.id));
+    setPinnedIds(getPinned(user.id));
+  }, [open, user]);
 
   // Lazy-load search corpus the first time the palette opens
   useEffect(() => {
@@ -71,7 +101,33 @@ export const GlobalCommandPalette = () => {
     navigate(path);
   };
 
-  const lectureTitle = (id: string) => lectures.find((l) => l.id === id)?.title ?? "Lecture";
+  const lectureById = useCallback(
+    (id: string) => lectures.find((l) => l.id === id),
+    [lectures],
+  );
+  const lectureTitle = (id: string) => lectureById(id)?.title ?? "Lecture";
+
+  const handleTogglePin = (e: React.MouseEvent, lectureId: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!user) return;
+    const nowPinned = togglePinned(user.id, lectureId);
+    setPinnedIds(getPinned(user.id));
+    toast({
+      title: nowPinned ? "Pinned" : "Unpinned",
+      description: lectureTitle(lectureId),
+    });
+  };
+
+  // Resolve pinned/recent into actual lecture objects, filtering missing ones
+  const pinnedLectures = pinnedIds
+    .map((id) => lectureById(id))
+    .filter((l): l is Lecture => Boolean(l));
+  const recentLectures = recentIds
+    .filter((id) => !pinnedIds.includes(id))
+    .map((id) => lectureById(id))
+    .filter((l): l is Lecture => Boolean(l))
+    .slice(0, 5);
 
   return (
     <CommandDialog open={open} onOpenChange={setOpen}>
@@ -80,6 +136,61 @@ export const GlobalCommandPalette = () => {
         <CommandEmpty>
           {!loaded ? "Loading..." : "No results found."}
         </CommandEmpty>
+
+        {pinnedLectures.length > 0 && (
+          <CommandGroup heading="📌 Pinned">
+            {pinnedLectures.map((l) => (
+              <CommandItem
+                key={`pin-${l.id}`}
+                value={`pinned ${l.title}`}
+                onSelect={() => go(`/lecture/${l.id}`)}
+              >
+                <Star className="mr-2 h-4 w-4 fill-highlight text-highlight" />
+                <span className="truncate">{l.title}</span>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="ml-auto h-7 w-7"
+                  onClick={(e) => handleTogglePin(e, l.id)}
+                  aria-label="Unpin"
+                >
+                  <PinOff className="h-3.5 w-3.5" />
+                </Button>
+              </CommandItem>
+            ))}
+          </CommandGroup>
+        )}
+
+        {recentLectures.length > 0 && (
+          <>
+            {pinnedLectures.length > 0 && <CommandSeparator />}
+            <CommandGroup heading="🕒 Recent">
+              {recentLectures.map((l) => (
+                <CommandItem
+                  key={`recent-${l.id}`}
+                  value={`recent ${l.title}`}
+                  onSelect={() => go(`/lecture/${l.id}`)}
+                >
+                  <Clock className="mr-2 h-4 w-4 text-muted-foreground" />
+                  <span className="truncate">{l.title}</span>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="ml-auto h-7 w-7"
+                    onClick={(e) => handleTogglePin(e, l.id)}
+                    aria-label="Pin"
+                  >
+                    <Pin className="h-3.5 w-3.5" />
+                  </Button>
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          </>
+        )}
+
+        {(pinnedLectures.length > 0 || recentLectures.length > 0) && (
+          <CommandSeparator />
+        )}
 
         <CommandGroup heading="Navigation">
           {NAV_ITEMS.map((item) => (
@@ -95,16 +206,32 @@ export const GlobalCommandPalette = () => {
           <>
             <CommandSeparator />
             <CommandGroup heading={`Lectures (${lectures.length})`}>
-              {lectures.slice(0, 50).map((l) => (
-                <CommandItem
-                  key={`l-${l.id}`}
-                  value={`lecture ${l.title}`}
-                  onSelect={() => go(`/lecture/${l.id}`)}
-                >
-                  <BookMarked className="mr-2 h-4 w-4 text-primary" />
-                  <span className="truncate">{l.title}</span>
-                </CommandItem>
-              ))}
+              {lectures.slice(0, 50).map((l) => {
+                const pinned = pinnedIds.includes(l.id);
+                return (
+                  <CommandItem
+                    key={`l-${l.id}`}
+                    value={`lecture ${l.title}`}
+                    onSelect={() => go(`/lecture/${l.id}`)}
+                  >
+                    <BookMarked className="mr-2 h-4 w-4 text-primary" />
+                    <span className="truncate">{l.title}</span>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="ml-auto h-7 w-7"
+                      onClick={(e) => handleTogglePin(e, l.id)}
+                      aria-label={pinned ? "Unpin" : "Pin"}
+                    >
+                      {pinned ? (
+                        <PinOff className="h-3.5 w-3.5 text-highlight" />
+                      ) : (
+                        <Pin className="h-3.5 w-3.5" />
+                      )}
+                    </Button>
+                  </CommandItem>
+                );
+              })}
             </CommandGroup>
           </>
         )}
