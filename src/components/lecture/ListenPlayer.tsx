@@ -42,9 +42,13 @@ interface Props {
   downloadName?: string;
   /** "compact" = just a Listen button (Quick summary). "full" = full player UI (Detailed). */
   mode?: Mode;
+  /** Caching key — when both are present, generated audio is reused server-side. */
+  lectureId?: string;
+  section?: string;
 }
 
-export const ListenPlayer = ({ text, downloadName = "summary", mode = "compact" }: Props) => {
+export const ListenPlayer = ({ text, downloadName = "summary", mode = "compact", lectureId, section }: Props) => {
+
   const [state, setState] = useState<"idle" | "loading" | "playing" | "paused">("idle");
   const [usingElevenLabs, setUsingElevenLabs] = useState(false);
   const [duration, setDuration] = useState(0);
@@ -123,8 +127,9 @@ export const ListenPlayer = ({ text, downloadName = "summary", mode = "compact" 
     setState("loading");
     try {
       const { data, error } = await supabase.functions.invoke("tts-summary", {
-        body: { text: clean },
+        body: { text: clean, lectureId, section },
       });
+
       if (error) throw error;
 
       if (data?.configured && data.audioBase64) {

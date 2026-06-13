@@ -1,13 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { BookOpen, Search, Upload, Clock, CheckCircle2, AlertCircle, Loader2, Pin } from "lucide-react";
+import { BookOpen, Search, Upload, Clock, CheckCircle2, AlertCircle, Loader2, Pin, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/contexts/AuthContext";
-import { getPinned } from "@/lib/palettePrefs";
+import { getPinned, togglePinned } from "@/lib/palettePrefs";
 
 type Lecture = { id: string; title: string; status: string; source_type: string; created_at: string };
 
@@ -101,12 +101,33 @@ const Library = () => {
               >
                 {pinned && (
                   <span
-                    className="absolute -top-2 -left-2 inline-flex items-center gap-1 rounded-full bg-highlight px-2 py-0.5 text-xs font-bold text-highlight-foreground shadow-playful"
+                    className="absolute -top-2 -left-2 inline-flex items-center gap-1 rounded-full bg-highlight pl-2 pr-1 py-0.5 text-xs font-bold text-highlight-foreground shadow-playful"
                     title="Pinned in Cmd+K"
                   >
                     <Pin className="h-3 w-3 fill-current" /> Pinned
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        if (!user) return;
+                        togglePinned(user.id, l.id);
+                        setPinnedIds((prev) => {
+                          const next = new Set(prev);
+                          next.delete(l.id);
+                          return next;
+                        });
+                        window.dispatchEvent(new Event("storage"));
+                      }}
+                      className="ml-0.5 inline-flex h-4 w-4 items-center justify-center rounded-full hover:bg-highlight-foreground/20"
+                      aria-label="Unpin lecture"
+                      title="Unpin"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
                   </span>
                 )}
+
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-accent text-accent-foreground">
                     <BookOpen className="h-5 w-5" />

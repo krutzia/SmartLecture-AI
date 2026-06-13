@@ -65,7 +65,7 @@ export const SummaryTab = ({ lectureId }: { lectureId: string }) => {
     <div className="space-y-6">
       {summary.quick && (
         <Section title="✨ Quick summary" text={summary.quick} copyKey="quick">
-          <ListenPlayer text={summary.quick} downloadName="quick-summary" mode="compact" />
+          <ListenPlayer text={summary.quick} downloadName="quick-summary" mode="compact" lectureId={lectureId} section="quick" />
         </Section>
       )}
       {summary.bullets?.length > 0 && (
@@ -95,7 +95,7 @@ export const SummaryTab = ({ lectureId }: { lectureId: string }) => {
           title="📝 Detailed notes"
           text={summary.detailed}
           copyKey="detailed"
-          footer={<ListenPlayer text={summary.detailed} downloadName="detailed-notes" mode="full" />}
+          footer={<ListenPlayer text={summary.detailed} downloadName="detailed-notes" mode="full" lectureId={lectureId} section="detailed" />}
         />
       )}
     </div>
