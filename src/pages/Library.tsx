@@ -7,7 +7,7 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/contexts/AuthContext";
-import { getPinned } from "@/lib/palettePrefs";
+import { getPinned, togglePinned } from "@/lib/palettePrefs";
 
 type Lecture = { id: string; title: string; status: string; source_type: string; created_at: string };
 
