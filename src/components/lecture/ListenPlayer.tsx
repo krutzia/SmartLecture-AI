@@ -127,8 +127,9 @@ export const ListenPlayer = ({ text, downloadName = "summary", mode = "compact",
     setState("loading");
     try {
       const { data, error } = await supabase.functions.invoke("tts-summary", {
-        body: { text: clean },
+        body: { text: clean, lectureId, section },
       });
+
       if (error) throw error;
 
       if (data?.configured && data.audioBase64) {
