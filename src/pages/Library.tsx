@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { BookOpen, Search, Upload, Clock, CheckCircle2, AlertCircle, Loader2, Pin } from "lucide-react";
+import { BookOpen, Search, Upload, Clock, CheckCircle2, AlertCircle, Loader2, Pin, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
