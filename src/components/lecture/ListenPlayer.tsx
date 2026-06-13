@@ -42,9 +42,13 @@ interface Props {
   downloadName?: string;
   /** "compact" = just a Listen button (Quick summary). "full" = full player UI (Detailed). */
   mode?: Mode;
+  /** Caching key — when both are present, generated audio is reused server-side. */
+  lectureId?: string;
+  section?: string;
 }
 
-export const ListenPlayer = ({ text, downloadName = "summary", mode = "compact" }: Props) => {
+export const ListenPlayer = ({ text, downloadName = "summary", mode = "compact", lectureId, section }: Props) => {
+
   const [state, setState] = useState<"idle" | "loading" | "playing" | "paused">("idle");
   const [usingElevenLabs, setUsingElevenLabs] = useState(false);
   const [duration, setDuration] = useState(0);
