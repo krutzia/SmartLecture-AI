@@ -85,7 +85,7 @@ const Upload = () => {
 
       // Trigger processing
       toast({ title: "Upload complete!", description: "AI is now working its magic ✨" });
-      const { error: fnErr } = await supabase.functions.invoke("process-lecture", { body: { lectureId: lecture.id } });
+      const { error: fnErr } = await supabase.functions.invoke("process-lecture", { body: { lectureId: lecture.id, userId: user.id } });
       if (fnErr) {
         // It may have started but timed out; navigate anyway and let user watch status
         console.warn("process-lecture invoke error:", fnErr);

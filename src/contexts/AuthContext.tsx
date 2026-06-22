@@ -1,62 +1,29 @@
-import { createContext, useContext, useEffect, useState, ReactNode } from "react";
-import { Session, User } from "@supabase/supabase-js";
-import { supabase } from "@/integrations/supabase/client";
+import { createContext, useContext, useMemo, ReactNode } from "react";
+import { getDeviceId, resetDeviceId } from "@/lib/deviceId";
+
+type FakeUser = { id: string; email?: string };
 
 type AuthContextType = {
-  user: User | null;
-  session: Session | null;
-  loading: boolean;
+  user: FakeUser;
+  session: null;
+  loading: false;
   signOut: () => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
-  const [user, setUser] = useState<User | null>(null);
-  const [session, setSession] = useState<Session | null>(null);
-  const [loading, setLoading] = useState(true);
+  const value = useMemo<AuthContextType>(() => ({
+    user: { id: getDeviceId() },
+    session: null,
+    loading: false,
+    signOut: async () => {
+      resetDeviceId();
+      window.location.reload();
+    },
+  }), []);
 
-  useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, newSession) => {
-      setSession(newSession);
-      setUser(newSession?.user ?? null);
-      if (newSession) setLoading(false);
-    });
-
-    (async () => {
-      const { data: { session: s } } = await supabase.auth.getSession();
-      if (s) {
-        setSession(s);
-        setUser(s.user);
-        setLoading(false);
-      } else {
-        const { data, error } = await supabase.auth.signInAnonymously();
-        if (error) {
-          console.error("Anonymous sign-in failed", error);
-          setLoading(false);
-        } else if (data.session) {
-          setSession(data.session);
-          setUser(data.user);
-          setLoading(false);
-        }
-      }
-    })();
-
-    return () => subscription.unsubscribe();
-  }, []);
-
-  const signOut = async () => {
-    await supabase.auth.signOut();
-    const { data } = await supabase.auth.signInAnonymously();
-    setSession(data.session);
-    setUser(data.user);
-  };
-
-  return (
-    <AuthContext.Provider value={{ user, session, loading, signOut }}>
-      {children}
-    </AuthContext.Provider>
-  );
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
 
 export const useAuth = () => {

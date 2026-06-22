@@ -1,3 +1,4 @@
+import { getDeviceId } from "@/lib/deviceId";
 import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
@@ -73,7 +74,7 @@ const Review = () => {
       })
       .eq("id", card.id);
 
-    const { data: { user } } = await supabase.auth.getUser();
+    const user = { id: getDeviceId() };
     if (user) {
       const topic = card.question.split(/[?:.]/)[0].trim().slice(0, 60) || "Flashcard";
       await Promise.all([

@@ -1,3 +1,4 @@
+import { getDeviceId } from "@/lib/deviceId";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
@@ -69,7 +70,7 @@ export const MindMapTab = ({ lectureId }: { lectureId: string }) => {
   const runClustering = async () => {
     setClustering(true);
     try {
-      const { error } = await supabase.functions.invoke("cluster-concepts", { body: { lectureId } });
+      const { error } = await supabase.functions.invoke("cluster-concepts", { body: { lectureId, userId: getDeviceId() } });
       if (error) throw error;
       await load();
       toast({ title: "Mind map enhanced ✨", description: "Concepts grouped into clusters." });
@@ -98,7 +99,7 @@ export const MindMapTab = ({ lectureId }: { lectureId: string }) => {
     setGeneratingQuiz(true);
     try {
       const { data, error } = await supabase.functions.invoke("generate-quiz", {
-        body: { lectureId, numQuestions: 5, focusTopic: selectedConcept.term },
+        body: { lectureId, userId: getDeviceId(), numQuestions: 5, focusTopic: selectedConcept.term },
       });
       if (error) throw error;
       if ((data as any)?.error) throw new Error((data as any).error);
