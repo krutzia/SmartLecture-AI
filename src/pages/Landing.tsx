@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Sparkles, Upload, Brain, MessageCircle, Lightbulb, Zap, BookOpen } from "lucide-react";
+import logoAsset from "@/assets/logo-icon.png.asset.json";
 import { Button } from "@/components/ui/button";
 
 const features = [
