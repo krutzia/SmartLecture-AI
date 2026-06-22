@@ -19,7 +19,7 @@ const QUICK_ACTIONS = [
 ];
 
 export const ChatTab = ({ lectureId, lectureTitle }: { lectureId: string; lectureTitle: string }) => {
-  const { user, session } = useAuth();
+  const { user } = useAuth();
   const [messages, setMessages] = useState<Msg[]>([]);
   const [input, setInput] = useState("");
   const [streaming, setStreaming] = useState(false);
@@ -38,7 +38,7 @@ export const ChatTab = ({ lectureId, lectureTitle }: { lectureId: string; lectur
   }, [messages]);
 
   const send = async (text: string) => {
-    if (!text.trim() || streaming || !user || !session) return;
+    if (!text.trim() || streaming || !user) return;
     const userMsg: Msg = { role: "user", content: text.trim() };
     const newMessages = [...messages, userMsg];
     setMessages(newMessages);
@@ -66,9 +66,10 @@ export const ChatTab = ({ lectureId, lectureTitle }: { lectureId: string; lectur
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${session.access_token}`,
+          apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+          Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
         },
-        body: JSON.stringify({ lectureId, messages: newMessages }),
+        body: JSON.stringify({ lectureId, userId: user.id, messages: newMessages }),
       });
 
       if (!resp.ok || !resp.body) {

@@ -1,7 +1,7 @@
 import { createContext, useContext, useMemo, ReactNode } from "react";
 import { getDeviceId, resetDeviceId } from "@/lib/deviceId";
 
-type FakeUser = { id: string };
+type FakeUser = { id: string; email?: string };
 
 type AuthContextType = {
   user: FakeUser;
