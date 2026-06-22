@@ -40,19 +40,11 @@ Deno.serve(async (req) => {
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY")!;
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY missing");
 
-    const authHeader = req.headers.get("Authorization") ?? "";
-    const userClient = createClient(SUPABASE_URL, Deno.env.get("SUPABASE_ANON_KEY")!, {
-      global: { headers: { Authorization: authHeader } },
-    });
-    const { data: userData } = await userClient.auth.getUser();
-    if (!userData.user) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-    }
-    const userId = userData.user.id;
     const admin = createClient(SUPABASE_URL, SERVICE_KEY);
 
-    const { lectureId } = await req.json();
+    const { lectureId, userId } = await req.json();
     if (!lectureId) throw new Error("lectureId required");
+    if (!userId) throw new Error("userId required");
 
     const { data: lecture, error: lecErr } = await admin.from("lectures").select("*").eq("id", lectureId).eq("user_id", userId).single();
     if (lecErr || !lecture) throw new Error("Lecture not found");

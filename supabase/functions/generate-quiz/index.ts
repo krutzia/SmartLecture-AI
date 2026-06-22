@@ -16,26 +16,15 @@ Deno.serve(async (req) => {
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY")!;
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY missing");
 
-    const authHeader = req.headers.get("Authorization") ?? "";
-    const userClient = createClient(SUPABASE_URL, Deno.env.get("SUPABASE_ANON_KEY")!, {
-      global: { headers: { Authorization: authHeader } },
-    });
-    const { data: userData } = await userClient.auth.getUser();
-    if (!userData.user) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), {
-        status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-    const userId = userData.user.id;
     const admin = createClient(SUPABASE_URL, SERVICE_KEY);
 
     const body = await req.json().catch(() => ({}));
     const lectureId = body?.lectureId;
+    const userId = body?.userId;
     const numQuestions = Math.min(Math.max(Number(body?.numQuestions) || 8, 3), 15);
     const focusTopic = typeof body?.focusTopic === "string" ? body.focusTopic.trim().slice(0, 120) : "";
-    if (!lectureId || typeof lectureId !== "string") {
-      return new Response(JSON.stringify({ error: "lectureId required" }), {
+    if (!lectureId || typeof lectureId !== "string" || !userId) {
+      return new Response(JSON.stringify({ error: "lectureId and userId required" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
