@@ -21,7 +21,7 @@ export type Database = {
           id: string
           lecture_id: string
           role: string
-          user_id: string
+          user_id: string | null
         }
         Insert: {
           content: string
@@ -29,7 +29,7 @@ export type Database = {
           id?: string
           lecture_id: string
           role: string
-          user_id: string
+          user_id?: string | null
         }
         Update: {
           content?: string
@@ -37,7 +37,7 @@ export type Database = {
           id?: string
           lecture_id?: string
           role?: string
-          user_id?: string
+          user_id?: string | null
         }
         Relationships: [
           {
@@ -58,7 +58,7 @@ export type Database = {
           kind: string | null
           lecture_id: string
           term: string
-          user_id: string
+          user_id: string | null
         }
         Insert: {
           cluster?: string | null
@@ -68,7 +68,7 @@ export type Database = {
           kind?: string | null
           lecture_id: string
           term: string
-          user_id: string
+          user_id?: string | null
         }
         Update: {
           cluster?: string | null
@@ -78,7 +78,7 @@ export type Database = {
           kind?: string | null
           lecture_id?: string
           term?: string
-          user_id?: string
+          user_id?: string | null
         }
         Relationships: [
           {
@@ -103,7 +103,7 @@ export type Database = {
           lecture_id: string
           question: string
           repetitions: number
-          user_id: string
+          user_id: string | null
         }
         Insert: {
           answer: string
@@ -117,7 +117,7 @@ export type Database = {
           lecture_id: string
           question: string
           repetitions?: number
-          user_id: string
+          user_id?: string | null
         }
         Update: {
           answer?: string
@@ -131,7 +131,7 @@ export type Database = {
           lecture_id?: string
           question?: string
           repetitions?: number
-          user_id?: string
+          user_id?: string | null
         }
         Relationships: [
           {
@@ -154,7 +154,7 @@ export type Database = {
           status: Database["public"]["Enums"]["lecture_status"]
           title: string
           updated_at: string
-          user_id: string
+          user_id: string | null
         }
         Insert: {
           created_at?: string
@@ -166,7 +166,7 @@ export type Database = {
           status?: Database["public"]["Enums"]["lecture_status"]
           title: string
           updated_at?: string
-          user_id: string
+          user_id?: string | null
         }
         Update: {
           created_at?: string
@@ -178,7 +178,7 @@ export type Database = {
           status?: Database["public"]["Enums"]["lecture_status"]
           title?: string
           updated_at?: string
-          user_id?: string
+          user_id?: string | null
         }
         Relationships: []
       }
@@ -190,7 +190,7 @@ export type Database = {
           id: string
           lecture_id: string
           topic: string | null
-          user_id: string
+          user_id: string | null
         }
         Insert: {
           correct: boolean
@@ -199,7 +199,7 @@ export type Database = {
           id?: string
           lecture_id: string
           topic?: string | null
-          user_id: string
+          user_id?: string | null
         }
         Update: {
           correct?: boolean
@@ -208,7 +208,7 @@ export type Database = {
           id?: string
           lecture_id?: string
           topic?: string | null
-          user_id?: string
+          user_id?: string | null
         }
         Relationships: []
       }
@@ -220,7 +220,7 @@ export type Database = {
           question_count: number
           questions: Json
           title: string
-          user_id: string
+          user_id: string | null
         }
         Insert: {
           created_at?: string
@@ -229,7 +229,7 @@ export type Database = {
           question_count?: number
           questions?: Json
           title?: string
-          user_id: string
+          user_id?: string | null
         }
         Update: {
           created_at?: string
@@ -238,7 +238,7 @@ export type Database = {
           question_count?: number
           questions?: Json
           title?: string
-          user_id?: string
+          user_id?: string | null
         }
         Relationships: []
       }
@@ -249,7 +249,7 @@ export type Database = {
           id: string
           lecture_id: string
           minutes: number
-          user_id: string
+          user_id: string | null
         }
         Insert: {
           activity?: string
@@ -257,7 +257,7 @@ export type Database = {
           id?: string
           lecture_id: string
           minutes?: number
-          user_id: string
+          user_id?: string | null
         }
         Update: {
           activity?: string
@@ -265,7 +265,7 @@ export type Database = {
           id?: string
           lecture_id?: string
           minutes?: number
-          user_id?: string
+          user_id?: string | null
         }
         Relationships: []
       }
@@ -278,7 +278,7 @@ export type Database = {
           lecture_id: string
           quick: string | null
           takeaways: Json
-          user_id: string
+          user_id: string | null
         }
         Insert: {
           bullets?: Json
@@ -288,7 +288,7 @@ export type Database = {
           lecture_id: string
           quick?: string | null
           takeaways?: Json
-          user_id: string
+          user_id?: string | null
         }
         Update: {
           bullets?: Json
@@ -298,7 +298,7 @@ export type Database = {
           lecture_id?: string
           quick?: string | null
           takeaways?: Json
-          user_id?: string
+          user_id?: string | null
         }
         Relationships: [
           {
@@ -317,7 +317,7 @@ export type Database = {
           id: string
           lecture_id: string
           segments: Json
-          user_id: string
+          user_id: string | null
         }
         Insert: {
           created_at?: string
@@ -325,7 +325,7 @@ export type Database = {
           id?: string
           lecture_id: string
           segments?: Json
-          user_id: string
+          user_id?: string | null
         }
         Update: {
           created_at?: string
@@ -333,7 +333,7 @@ export type Database = {
           id?: string
           lecture_id?: string
           segments?: Json
-          user_id?: string
+          user_id?: string | null
         }
         Relationships: [
           {
