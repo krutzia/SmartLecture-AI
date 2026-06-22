@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Sparkles, Upload, Brain, MessageCircle, Lightbulb, Zap, BookOpen } from "lucide-react";
+import logoAsset from "@/assets/logo-icon.png.asset.json";
 import { Button } from "@/components/ui/button";
 
 const features = [
@@ -18,9 +19,7 @@ const Landing = () => {
       {/* Nav */}
       <nav className="container flex items-center justify-between py-6">
         <Link to="/" className="flex items-center gap-2">
-          <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-gradient-hero shadow-playful">
-            <Sparkles className="h-5 w-5 text-white" />
-          </div>
+          <img src={logoAsset.url} alt="SmartLecture" className="h-10 w-10 object-contain" />
           <span className="font-display text-xl font-extrabold">
             Smart<span className="text-primary">Lecture</span>
           </span>
