@@ -1,5 +1,6 @@
 import { NavLink, useLocation } from "react-router-dom";
-import { LayoutDashboard, Upload, BookMarked, Settings, Sparkles, BarChart3 } from "lucide-react";
+import { LayoutDashboard, Upload, BookMarked, Settings, BarChart3 } from "lucide-react";
+import logoAsset from "@/assets/logo-icon.png.asset.json";
 import {
   Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel,
   SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarHeader, useSidebar,
@@ -22,9 +23,7 @@ export function AppSidebar() {
     <Sidebar collapsible="icon" className="border-r border-sidebar-border">
       <SidebarHeader className="px-4 py-5">
         <NavLink to="/dashboard" className="flex items-center gap-2">
-          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-hero shadow-playful">
-            <Sparkles className="h-5 w-5 text-white" />
-          </div>
+          <img src={logoAsset.url} alt="SmartLecture" className="h-9 w-9 object-contain" />
           {!collapsed && (
             <div className="font-display text-lg font-extrabold leading-none">
               Smart<span className="text-primary">Lecture</span>
