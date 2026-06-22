@@ -25,8 +25,7 @@ const Landing = () => {
           </span>
         </Link>
         <div className="flex items-center gap-2">
-          <Button asChild variant="ghost" size="sm"><Link to="/auth">Log in</Link></Button>
-          <Button asChild size="sm" className="rounded-full"><Link to="/auth?mode=signup">Get started</Link></Button>
+          <Button asChild size="sm" className="rounded-full"><Link to="/dashboard">Open app</Link></Button>
         </div>
       </nav>
 
@@ -56,10 +55,10 @@ const Landing = () => {
           className="mt-10 flex flex-wrap items-center justify-center gap-3"
         >
           <Button asChild size="lg" className="h-14 rounded-full px-8 text-base shadow-playful">
-            <Link to="/auth?mode=signup">Start learning free →</Link>
+            <Link to="/dashboard">Start learning free →</Link>
           </Button>
           <Button asChild variant="outline" size="lg" className="h-14 rounded-full px-8 text-base">
-            <Link to="/auth">I have an account</Link>
+            <Link to="/upload">Upload a lecture</Link>
           </Button>
         </motion.div>
 
@@ -100,7 +99,7 @@ const Landing = () => {
           <h2 className="font-display text-3xl font-extrabold text-white md:text-5xl">Ready to study smarter?</h2>
           <p className="mt-4 text-lg text-white/90">Join now — your first lecture is just a drag away.</p>
           <Button asChild size="lg" className="mt-8 h-14 rounded-full bg-white px-8 text-base text-primary hover:bg-white/90">
-            <Link to="/auth?mode=signup">Create free account</Link>
+            <Link to="/dashboard">Open the app</Link>
           </Button>
         </div>
       </section>
