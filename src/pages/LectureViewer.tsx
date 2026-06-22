@@ -1,3 +1,4 @@
+import { getDeviceId } from "@/lib/deviceId";
 import { useEffect, useState } from "react";
 import { useParams, Link, useSearchParams } from "react-router-dom";
 import { motion } from "framer-motion";
@@ -51,7 +52,7 @@ const LectureViewer = () => {
       setLoading(false);
       // Record this lecture as a recent visit for the Cmd+K palette.
       if (data?.status === "done") {
-        const { data: { user } } = await supabase.auth.getUser();
+        const user = { id: getDeviceId() };
         if (user) {
           const { pushRecent } = await import("@/lib/palettePrefs");
           pushRecent(user.id, data.id);
@@ -70,7 +71,7 @@ const LectureViewer = () => {
     const log = async () => {
       const minutes = (Date.now() - start) / 60000;
       if (minutes < 0.1) return;
-      const { data: { user } } = await supabase.auth.getUser();
+      const user = { id: getDeviceId() };
       if (!user) return;
       await supabase.from("study_sessions").insert({
         user_id: user.id,

@@ -1,3 +1,4 @@
+import { getDeviceId } from "@/lib/deviceId";
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
@@ -51,7 +52,7 @@ export const WeakTopicCoach = () => {
   const start = async () => {
     setLoading(true);
     try {
-      const { data, error } = await supabase.functions.invoke("weak-topic-coach", { body: {} });
+      const { data, error } = await supabase.functions.invoke("weak-topic-coach", { body: { userId: getDeviceId() } });
       if (error) throw error;
       if ((data as any)?.error) throw new Error((data as any).error);
       setCoaching(data as Coaching);
@@ -78,7 +79,7 @@ export const WeakTopicCoach = () => {
     setRevealed(true);
     setAnswers((prev) => [...prev, correct]);
 
-    const { data: { user } } = await supabase.auth.getUser();
+    const user = { id: getDeviceId() };
     if (user) {
       await Promise.all([
         supabase.from("quiz_attempts").insert({

@@ -1,3 +1,4 @@
+import { getDeviceId } from "@/lib/deviceId";
 import { useEffect, useRef, useState } from "react";
 import { useLocation } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
@@ -75,7 +76,7 @@ export const QuizTab = ({ lectureId }: { lectureId: string }) => {
     setGenerating(true);
     try {
       const { data, error } = await supabase.functions.invoke("generate-quiz", {
-        body: { lectureId, numQuestions: 8 },
+        body: { lectureId, userId: getDeviceId(), numQuestions: 8 },
       });
       if (error) throw error;
       const quiz: Quiz = {
@@ -107,7 +108,7 @@ export const QuizTab = ({ lectureId }: { lectureId: string }) => {
     setAnswers((prev) => [...prev, { correct, topic: q.topic }]);
 
     // Log to analytics
-    const { data: { user } } = await supabase.auth.getUser();
+    const user = { id: getDeviceId() };
     if (user) {
       await Promise.all([
         supabase.from("quiz_attempts").insert({
