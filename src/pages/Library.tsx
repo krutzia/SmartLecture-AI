@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { BookOpen, Search, Upload, Clock, CheckCircle2, AlertCircle, Loader2, Pin, X } from "lucide-react";
+import { BookOpen, Search, Upload, Clock, CheckCircle2, AlertCircle, Loader2, Pin, X, Link2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -9,7 +9,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/contexts/AuthContext";
 import { getPinned, togglePinned } from "@/lib/palettePrefs";
 
-type Lecture = { id: string; title: string; status: string; source_type: string; created_at: string };
+type Lecture = { id: string; title: string; status: string; source_type: string; created_at: string; file_path: string | null };
 
 const statusBadge: Record<string, { label: string; cls: string; Icon: any }> = {
   done: { label: "Ready", cls: "bg-success-soft text-success", Icon: CheckCircle2 },
@@ -29,7 +29,7 @@ const Library = () => {
 
   useEffect(() => {
     const load = async () => {
-      const { data } = await supabase.from("lectures").select("id,title,status,source_type,created_at").order("created_at", { ascending: false });
+      const { data } = await supabase.from("lectures").select("id,title,status,source_type,created_at,file_path").order("created_at", { ascending: false });
       setLectures(data ?? []);
       setLoading(false);
     };
@@ -132,10 +132,20 @@ const Library = () => {
                   <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-accent text-accent-foreground">
                     <BookOpen className="h-5 w-5" />
                   </div>
-                  <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium ${badge.cls}`}>
-                    <badge.Icon className={`h-3 w-3 ${isProcessing ? "animate-spin" : ""}`} />
-                    {badge.label}
-                  </span>
+                  <div className="flex flex-wrap items-center justify-end gap-1.5">
+                    {l.file_path?.startsWith("weblink::") && (
+                      <span
+                        className="inline-flex items-center gap-1 rounded-full bg-ai/10 px-2 py-1 text-xs font-bold text-ai ring-1 ring-ai/30"
+                        title="Imported from a web link"
+                      >
+                        <Link2 className="h-3 w-3" /> Web Link
+                      </span>
+                    )}
+                    <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium ${badge.cls}`}>
+                      <badge.Icon className={`h-3 w-3 ${isProcessing ? "animate-spin" : ""}`} />
+                      {badge.label}
+                    </span>
+                  </div>
                 </div>
                 <h3 className="mt-4 line-clamp-2 font-display text-lg font-bold">{l.title}</h3>
                 <div className="mt-3 flex items-center gap-2 text-xs text-muted-foreground">
