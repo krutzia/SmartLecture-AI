@@ -15,6 +15,9 @@ import {
   Sparkles,
   CheckCircle2,
   PlayCircle,
+  AlertTriangle,
+  RotateCw,
+  Pencil,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -22,6 +25,15 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { toast } from "@/hooks/use-toast";
 
 const MAX_BYTES = 50 * 1024 * 1024;
@@ -65,11 +77,22 @@ function getYouTubeId(url: string): string | null {
   }
 }
 
-function detectLinkKind(url: string): "youtube" | "zoom" | "cloud" | "invalid" {
+type LinkKind = "youtube" | "zoom" | "cloud" | "unsupported" | "invalid";
+
+function detectLinkKind(url: string): LinkKind {
   try {
     const u = new URL(url);
-    if (u.hostname.includes("youtube.com") || u.hostname.includes("youtu.be")) return "youtube";
-    if (u.hostname.includes("zoom.us")) return "zoom";
+    const h = u.hostname.toLowerCase();
+    if (h.includes("youtube.com") || h.includes("youtu.be")) return "youtube";
+    if (h.includes("zoom.us")) return "zoom";
+    // Providers we deliberately mark as unsupported so we can show that error state
+    if (
+      h.includes("vimeo.com") ||
+      h.includes("drive.google.com") ||
+      h.includes("dropbox.com") ||
+      h.includes("tiktok.com") ||
+      h.includes("instagram.com")
+    ) return "unsupported";
     if (/\.(mp4|mp3|wav|m4a|webm)(\?|$)/i.test(u.pathname)) return "cloud";
     return "cloud";
   } catch {
@@ -91,6 +114,13 @@ const LINK_STEPS = [
   "Structuring Workspace...",
 ];
 
+type JobError = {
+  step: number;
+  title: string;
+  message: string;
+  kind: "unsupported" | "rate_limit" | "extraction" | "auth" | "network";
+};
+
 const Upload = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -108,8 +138,18 @@ const Upload = () => {
     thumb?: string;
     url: string;
   } | null>(null);
+  const [editingPreview, setEditingPreview] = useState(false);
+
   const [linkBusy, setLinkBusy] = useState(false);
   const [linkStep, setLinkStep] = useState(0);
+  const [jobError, setJobError] = useState<JobError | null>(null);
+
+  // Post-processing confirm dialog
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [confirmTitle, setConfirmTitle] = useState("");
+  const [confirmUrl, setConfirmUrl] = useState("");
+  const [confirmDuration, setConfirmDuration] = useState("");
+  const [saving, setSaving] = useState(false);
 
   const onDrop = useCallback((accepted: File[], rejected: any[]) => {
     if (rejected.length) {
@@ -171,8 +211,17 @@ const Upload = () => {
       toast({ title: "Invalid URL", description: "Please paste a valid http(s) link.", variant: "destructive" });
       return;
     }
+    if (kind === "unsupported") {
+      toast({
+        title: "Provider not supported yet",
+        description: "We currently support YouTube, Zoom, and direct video links.",
+        variant: "destructive",
+      });
+      return;
+    }
     setValidating(true);
     setPreview(null);
+    setJobError(null);
     await new Promise((r) => setTimeout(r, 900));
 
     if (kind === "youtube") {
@@ -192,43 +241,89 @@ const Upload = () => {
     setValidating(false);
   };
 
+  // Plans a mock failure for the current job; null = success
+  function planFailure(p: { kind: string; url: string }): JobError | null {
+    // Deterministic test hooks
+    if (/fail|error|broken/i.test(p.url)) {
+      return { step: 2, kind: "extraction", title: "Extraction failed", message: "We couldn't extract the audio stream from this URL." };
+    }
+    if (/ratelimit|429/i.test(p.url)) {
+      return { step: 0, kind: "rate_limit", title: "Rate limited", message: "Too many imports right now. Please wait a minute and retry." };
+    }
+    // Zoom recordings need account auth in real life
+    if (p.kind === "zoom") {
+      return { step: 1, kind: "auth", title: "Authentication required", message: "This Zoom recording is private. Connect your Zoom account or use a public share link." };
+    }
+    return null;
+  }
+
   // Step animation for link processing
   useEffect(() => {
-    if (!linkBusy) return;
-    if (linkStep >= LINK_STEPS.length) return;
-    const t = setTimeout(() => setLinkStep((s) => s + 1), 1200);
+    if (!linkBusy || jobError) return;
+    if (!preview) return;
+
+    const failure = planFailure(preview);
+
+    if (linkStep >= LINK_STEPS.length) {
+      // Completed all steps successfully — open confirm dialog
+      const t = setTimeout(() => {
+        setLinkBusy(false);
+        setConfirmTitle(preview.title);
+        setConfirmUrl(preview.url);
+        setConfirmDuration(preview.duration);
+        setConfirmOpen(true);
+      }, 500);
+      return () => clearTimeout(t);
+    }
+
+    const t = setTimeout(() => {
+      if (failure && failure.step === linkStep) {
+        setJobError(failure);
+        return;
+      }
+      setLinkStep((s) => s + 1);
+    }, 1100);
     return () => clearTimeout(t);
-  }, [linkBusy, linkStep]);
+  }, [linkBusy, linkStep, jobError, preview]);
 
-  const processLink = async () => {
-    if (!preview || !user) return;
-    setLinkBusy(true);
+  const startProcessing = () => {
+    if (!preview) return;
+    setJobError(null);
     setLinkStep(0);
+    setLinkBusy(true);
+  };
 
-    // Insert mock lecture row in parallel with animation
-    const insertPromise = supabase
-      .from("lectures")
-      .insert({
-        user_id: user.id,
-        title: preview.title,
-        source_type: "video",
-        file_path: `weblink::${preview.url}`,
-        status: "done",
-      })
-      .select()
-      .single();
+  const retryProcessing = () => {
+    setJobError(null);
+    setLinkStep(0);
+  };
 
-    // Let animation play (4 steps × 1.2s + buffer)
-    await new Promise((r) => setTimeout(r, LINK_STEPS.length * 1200 + 400));
+  const cancelProcessing = () => {
+    setLinkBusy(false);
+    setLinkStep(0);
+    setJobError(null);
+  };
 
-    const { data, error } = await insertPromise;
-    if (error || !data) {
-      toast({ title: "Couldn't import link", description: error?.message ?? "Try again", variant: "destructive" });
-      setLinkBusy(false);
-      setLinkStep(0);
+  const saveConfirmed = async () => {
+    if (!user || !preview) return;
+    if (!confirmTitle.trim()) {
+      toast({ title: "Title required", description: "Please give this lecture a name.", variant: "destructive" });
       return;
     }
-    toast({ title: "Lecture imported!", description: "Added to your library ✨" });
+    setSaving(true);
+    const { error } = await supabase.from("lectures").insert({
+      user_id: user.id,
+      title: confirmTitle.trim(),
+      source_type: "video",
+      file_path: `weblink::${confirmUrl.trim() || preview.url}`,
+      status: "done",
+    });
+    setSaving(false);
+    if (error) {
+      toast({ title: "Couldn't save lecture", description: error.message, variant: "destructive" });
+      return;
+    }
+    toast({ title: "Lecture saved!", description: "Added to your library ✨" });
     navigate("/library");
   };
 
@@ -325,7 +420,7 @@ const Upload = () => {
                 </div>
                 <Input
                   value={url}
-                  onChange={(e) => { setUrl(e.target.value); setPreview(null); }}
+                  onChange={(e) => { setUrl(e.target.value); setPreview(null); setJobError(null); }}
                   placeholder="Paste YouTube, Zoom, or cloud video URL here..."
                   className="h-14 rounded-2xl border-border/60 bg-muted/30 pl-11 pr-4 text-sm shadow-inner focus-visible:bg-card"
                   onKeyDown={(e) => { if (e.key === "Enter" && url) fetchLink(); }}
@@ -367,7 +462,7 @@ const Upload = () => {
                 )}
               </AnimatePresence>
 
-              {/* Preview card */}
+              {/* Preview card + pre-confirm edit */}
               <AnimatePresence>
                 {preview && !validating && (
                   <motion.div
@@ -393,16 +488,52 @@ const Upload = () => {
                           <Link2 className="h-2.5 w-2.5" /> {preview.kind}
                         </span>
                       </div>
-                      <div className="p-3">
-                        <div className="flex items-start gap-2">
-                          <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-success" />
-                          <p className="line-clamp-2 text-sm font-semibold">{preview.title}</p>
-                        </div>
+                      <div className="space-y-3 p-3">
+                        {editingPreview ? (
+                          <div className="space-y-2">
+                            <Label htmlFor="prev-title" className="text-xs">Lecture title</Label>
+                            <Input
+                              id="prev-title"
+                              value={preview.title}
+                              onChange={(e) => setPreview({ ...preview, title: e.target.value })}
+                              className="h-9"
+                            />
+                            <Label htmlFor="prev-url" className="text-xs">Source URL</Label>
+                            <Input
+                              id="prev-url"
+                              value={preview.url}
+                              onChange={(e) => setPreview({ ...preview, url: e.target.value })}
+                              className="h-9"
+                            />
+                            <Button
+                              size="sm"
+                              variant="secondary"
+                              className="w-full"
+                              onClick={() => setEditingPreview(false)}
+                            >
+                              Done
+                            </Button>
+                          </div>
+                        ) : (
+                          <div className="flex items-start gap-2">
+                            <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-success" />
+                            <p className="line-clamp-2 flex-1 text-sm font-semibold">{preview.title}</p>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-6 w-6 shrink-0"
+                              onClick={() => setEditingPreview(true)}
+                              aria-label="Edit details"
+                            >
+                              <Pencil className="h-3.5 w-3.5" />
+                            </Button>
+                          </div>
+                        )}
                       </div>
                     </div>
 
                     <Button
-                      onClick={processLink}
+                      onClick={startProcessing}
                       size="lg"
                       className="mt-4 h-12 w-full rounded-full text-base shadow-playful"
                     >
@@ -418,36 +549,52 @@ const Upload = () => {
             <div className="py-2">
               <div className="mb-5 flex items-center gap-3">
                 <motion.div
-                  animate={{ rotate: 360 }}
+                  animate={jobError ? {} : { rotate: 360 }}
                   transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
-                  className="flex h-10 w-10 items-center justify-center rounded-2xl bg-gradient-hero text-white shadow-playful"
+                  className={`flex h-10 w-10 items-center justify-center rounded-2xl text-white shadow-playful ${
+                    jobError ? "bg-destructive" : "bg-gradient-hero"
+                  }`}
                 >
-                  <Globe className="h-5 w-5" />
+                  {jobError ? <AlertTriangle className="h-5 w-5" /> : <Globe className="h-5 w-5" />}
                 </motion.div>
-                <div>
-                  <div className="font-display text-base font-bold">Importing from the web</div>
-                  <div className="text-xs text-muted-foreground line-clamp-1">{preview?.title}</div>
+                <div className="min-w-0 flex-1">
+                  <div className="font-display text-base font-bold">
+                    {jobError ? jobError.title : "Importing from the web"}
+                  </div>
+                  <div className="line-clamp-1 text-xs text-muted-foreground">{preview?.title}</div>
                 </div>
               </div>
 
-              <Progress value={(Math.min(linkStep + 1, LINK_STEPS.length) / LINK_STEPS.length) * 100} className="h-2" />
+              <Progress
+                value={
+                  jobError
+                    ? ((jobError.step) / LINK_STEPS.length) * 100
+                    : (Math.min(linkStep, LINK_STEPS.length) / LINK_STEPS.length) * 100
+                }
+                className={`h-2 ${jobError ? "[&>div]:bg-destructive" : ""}`}
+              />
 
               <ul className="mt-5 space-y-3">
                 {LINK_STEPS.map((label, i) => {
-                  const done = i < linkStep;
-                  const active = i === linkStep;
+                  const failed = jobError && i === jobError.step;
+                  const done = i < linkStep && !failed;
+                  const active = !jobError && i === linkStep;
                   return (
                     <li key={label} className="flex items-center gap-3 text-sm">
                       <span
                         className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full border ${
-                          done
+                          failed
+                            ? "border-destructive bg-destructive text-destructive-foreground"
+                            : done
                             ? "border-success bg-success text-success-foreground"
                             : active
                             ? "border-primary bg-primary-soft text-primary"
                             : "border-border bg-muted text-muted-foreground"
                         }`}
                       >
-                        {done ? (
+                        {failed ? (
+                          <X className="h-3.5 w-3.5" />
+                        ) : done ? (
                           <CheckCircle2 className="h-3.5 w-3.5" />
                         ) : active ? (
                           <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -455,17 +602,106 @@ const Upload = () => {
                           <span className="text-[10px] font-bold">{i + 1}</span>
                         )}
                       </span>
-                      <span className={done ? "text-muted-foreground line-through" : active ? "font-semibold" : "text-muted-foreground"}>
+                      <span
+                        className={
+                          failed
+                            ? "font-semibold text-destructive"
+                            : done
+                            ? "text-muted-foreground line-through"
+                            : active
+                            ? "font-semibold"
+                            : "text-muted-foreground"
+                        }
+                      >
                         {label}
                       </span>
                     </li>
                   );
                 })}
               </ul>
+
+              {jobError && (
+                <div className="mt-5 rounded-2xl border border-destructive/30 bg-destructive/5 p-4">
+                  <div className="flex items-start gap-2">
+                    <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-destructive" />
+                    <div className="flex-1 text-sm">
+                      <div className="font-semibold text-destructive">{jobError.title}</div>
+                      <div className="mt-1 text-muted-foreground">{jobError.message}</div>
+                    </div>
+                  </div>
+                  <div className="mt-4 flex gap-2">
+                    <Button onClick={retryProcessing} className="flex-1 rounded-full" size="sm">
+                      <RotateCw className="mr-2 h-3.5 w-3.5" />
+                      Retry
+                    </Button>
+                    <Button onClick={cancelProcessing} variant="outline" className="flex-1 rounded-full" size="sm">
+                      Cancel
+                    </Button>
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </Card>
       </div>
+
+      {/* ============ POST-PROCESS CONFIRM DIALOG ============ */}
+      <Dialog open={confirmOpen} onOpenChange={(o) => !saving && setConfirmOpen(o)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <CheckCircle2 className="h-5 w-5 text-success" />
+              Confirm lecture details
+            </DialogTitle>
+            <DialogDescription>
+              Review what we detected. You can rename it or fix the source URL before saving to your library.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <Label htmlFor="c-title">Title</Label>
+              <Input
+                id="c-title"
+                value={confirmTitle}
+                onChange={(e) => setConfirmTitle(e.target.value)}
+                placeholder="Lecture title"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="c-url">Source URL</Label>
+              <Input
+                id="c-url"
+                value={confirmUrl}
+                onChange={(e) => setConfirmUrl(e.target.value)}
+                placeholder="https://…"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="c-dur">Detected duration</Label>
+              <Input
+                id="c-dur"
+                value={confirmDuration}
+                onChange={(e) => setConfirmDuration(e.target.value)}
+                placeholder="mm:ss"
+              />
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setConfirmOpen(false)} disabled={saving}>
+              Back
+            </Button>
+            <Button onClick={saveConfirmed} disabled={saving}>
+              {saving ? (
+                <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Saving…</>
+              ) : (
+                <><Sparkles className="mr-2 h-4 w-4" /> Save to library</>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
