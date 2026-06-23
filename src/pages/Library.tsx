@@ -9,7 +9,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/contexts/AuthContext";
 import { getPinned, togglePinned } from "@/lib/palettePrefs";
 
-type Lecture = { id: string; title: string; status: string; source_type: string; created_at: string };
+type Lecture = { id: string; title: string; status: string; source_type: string; created_at: string; file_path: string | null };
 
 const statusBadge: Record<string, { label: string; cls: string; Icon: any }> = {
   done: { label: "Ready", cls: "bg-success-soft text-success", Icon: CheckCircle2 },
@@ -29,7 +29,7 @@ const Library = () => {
 
   useEffect(() => {
     const load = async () => {
-      const { data } = await supabase.from("lectures").select("id,title,status,source_type,created_at").order("created_at", { ascending: false });
+      const { data } = await supabase.from("lectures").select("id,title,status,source_type,created_at,file_path").order("created_at", { ascending: false });
       setLectures(data ?? []);
       setLoading(false);
     };
