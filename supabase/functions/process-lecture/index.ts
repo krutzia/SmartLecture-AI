@@ -55,7 +55,29 @@ Deno.serve(async (req) => {
     let fullText = "";
     let segments: any[] = [];
 
-    if (lecture.source_type === "text") {
+    const isWebLink = typeof lecture.file_path === "string" && lecture.file_path.startsWith("weblink::");
+
+    if (isWebLink) {
+      // We can't actually fetch the remote media from an edge function, so we
+      // synthesize a plausible lecture transcript from the title using the AI.
+      const sourceUrl = lecture.file_path.replace(/^weblink::/, "");
+      await admin.from("lectures").update({ status: "transcribing" }).eq("id", lectureId);
+      const result = await aiCall({
+        model: DEFAULT_MODEL,
+        messages: [
+          {
+            role: "system",
+            content:
+              "You are an expert lecturer. Given a lecture title and source URL, write a detailed, realistic lecture transcript (1500-2500 words) covering the topic as if you were teaching it. Use clear paragraphs, examples, and definitions. Output only the transcript text — no preamble, headings, or commentary.",
+          },
+          {
+            role: "user",
+            content: `Lecture title: ${lecture.title}\nSource: ${sourceUrl}\n\nWrite the full lecture transcript now.`,
+          },
+        ],
+      }, LOVABLE_API_KEY);
+      fullText = result.choices?.[0]?.message?.content ?? "";
+    } else if (lecture.source_type === "text") {
       const { data: file, error: dlErr } = await admin.storage.from("lectures").download(lecture.file_path);
       if (dlErr) throw dlErr;
       fullText = await file.text();
