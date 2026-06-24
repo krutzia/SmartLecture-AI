@@ -152,6 +152,9 @@ const Upload = () => {
   const [confirmDuration, setConfirmDuration] = useState("");
   const [saving, setSaving] = useState(false);
 
+  // Tracker shown after processing starts (file or link)
+  const [tracking, setTracking] = useState<{ id: string; title: string } | null>(null);
+
   const onDrop = useCallback((accepted: File[], rejected: any[]) => {
     if (rejected.length) {
       toast({ title: "Can't use that file", description: rejected[0].errors?.[0]?.message ?? "Unsupported", variant: "destructive" });
