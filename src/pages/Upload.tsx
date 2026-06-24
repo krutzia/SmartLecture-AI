@@ -35,6 +35,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { toast } from "@/hooks/use-toast";
+import { ProcessingTracker } from "@/components/ProcessingTracker";
 
 const MAX_BYTES = 50 * 1024 * 1024;
 const ACCEPT = {
