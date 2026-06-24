@@ -311,20 +311,29 @@ const Upload = () => {
       return;
     }
     setSaving(true);
-    const { error } = await supabase.from("lectures").insert({
-      user_id: user.id,
-      title: confirmTitle.trim(),
-      source_type: "video",
-      file_path: `weblink::${confirmUrl.trim() || preview.url}`,
-      status: "done",
-    });
-    setSaving(false);
-    if (error) {
-      toast({ title: "Couldn't save lecture", description: error.message, variant: "destructive" });
+    const { data: lecture, error } = await supabase
+      .from("lectures")
+      .insert({
+        user_id: user.id,
+        title: confirmTitle.trim(),
+        source_type: "video",
+        file_path: `weblink::${confirmUrl.trim() || preview.url}`,
+        status: "extracting",
+      })
+      .select()
+      .single();
+    if (error || !lecture) {
+      setSaving(false);
+      toast({ title: "Couldn't save lecture", description: error?.message ?? "Unknown error", variant: "destructive" });
       return;
     }
-    toast({ title: "Lecture saved!", description: "Added to your library ✨" });
-    navigate("/library");
+    // Fire-and-forget AI processing — the lecture viewer subscribes to status updates.
+    supabase.functions
+      .invoke("process-lecture", { body: { lectureId: lecture.id, userId: user.id } })
+      .catch((e) => console.warn("process-lecture invoke error:", e));
+    setSaving(false);
+    toast({ title: "Lecture saved!", description: "AI is generating your study materials ✨" });
+    navigate(`/lecture/${lecture.id}`);
   };
 
   const Icon = file ? fileIcon(detectSource(file)) : UploadIcon;
