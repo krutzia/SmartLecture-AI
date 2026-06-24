@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+
 import { useDropzone } from "react-dropzone";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -35,6 +35,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { toast } from "@/hooks/use-toast";
+import { ProcessingTracker } from "@/components/ProcessingTracker";
 
 const MAX_BYTES = 50 * 1024 * 1024;
 const ACCEPT = {
@@ -123,7 +124,7 @@ type JobError = {
 
 const Upload = () => {
   const { user } = useAuth();
-  const navigate = useNavigate();
+  
   const [file, setFile] = useState<File | null>(null);
   const [progress, setProgress] = useState(0);
   const [busy, setBusy] = useState(false);
@@ -150,6 +151,9 @@ const Upload = () => {
   const [confirmUrl, setConfirmUrl] = useState("");
   const [confirmDuration, setConfirmDuration] = useState("");
   const [saving, setSaving] = useState(false);
+
+  // Tracker shown after processing starts (file or link)
+  const [tracking, setTracking] = useState<{ id: string; title: string } | null>(null);
 
   const onDrop = useCallback((accepted: File[], rejected: any[]) => {
     if (rejected.length) {
@@ -192,10 +196,14 @@ const Upload = () => {
       setProgress(60);
 
       toast({ title: "Upload complete!", description: "AI is now working its magic ✨" });
-      const { error: fnErr } = await supabase.functions.invoke("process-lecture", { body: { lectureId: lecture.id, userId: user.id } });
-      if (fnErr) console.warn("process-lecture invoke error:", fnErr);
+      // Fire-and-forget — tracker will poll progress.
+      supabase.functions
+        .invoke("process-lecture", { body: { lectureId: lecture.id, userId: user.id } })
+        .catch((e) => console.warn("process-lecture invoke error:", e));
       setProgress(100);
-      navigate(`/lecture/${lecture.id}`);
+      setBusy(false);
+      setFile(null);
+      setTracking({ id: lecture.id, title: lecture.title });
     } catch (e: any) {
       console.error(e);
       toast({ title: "Upload failed", description: e?.message ?? "Please try again", variant: "destructive" });
@@ -332,8 +340,11 @@ const Upload = () => {
       .invoke("process-lecture", { body: { lectureId: lecture.id, userId: user.id } })
       .catch((e) => console.warn("process-lecture invoke error:", e));
     setSaving(false);
+    setConfirmOpen(false);
+    setPreview(null);
+    setUrl("");
     toast({ title: "Lecture saved!", description: "AI is generating your study materials ✨" });
-    navigate(`/lecture/${lecture.id}`);
+    setTracking({ id: lecture.id, title: confirmTitle.trim() });
   };
 
   const Icon = file ? fileIcon(detectSource(file)) : UploadIcon;
@@ -343,6 +354,15 @@ const Upload = () => {
       <h1 className="font-display text-3xl font-extrabold md:text-4xl">Add a lecture</h1>
       <p className="mt-1 text-muted-foreground">Upload a file or import directly from a link.</p>
 
+      {tracking ? (
+        <div className="mt-8 max-w-2xl">
+          <ProcessingTracker
+            lectureId={tracking.id}
+            title={tracking.title}
+            onCancel={() => setTracking(null)}
+          />
+        </div>
+      ) : (
       <div className="mt-8 grid gap-6 lg:grid-cols-2">
         {/* ============ OPTION 1: FILE UPLOAD ============ */}
         <Card className="rounded-3xl border-border/50 p-6 shadow-card">
@@ -653,6 +673,9 @@ const Upload = () => {
           )}
         </Card>
       </div>
+      )}
+
+
 
       {/* ============ POST-PROCESS CONFIRM DIALOG ============ */}
       <Dialog open={confirmOpen} onOpenChange={(o) => !saving && setConfirmOpen(o)}>
