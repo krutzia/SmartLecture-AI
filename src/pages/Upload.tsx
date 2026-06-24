@@ -673,6 +673,9 @@ const Upload = () => {
           )}
         </Card>
       </div>
+      )}
+
+
 
       {/* ============ POST-PROCESS CONFIRM DIALOG ============ */}
       <Dialog open={confirmOpen} onOpenChange={(o) => !saving && setConfirmOpen(o)}>
