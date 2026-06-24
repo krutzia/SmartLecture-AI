@@ -354,6 +354,15 @@ const Upload = () => {
       <h1 className="font-display text-3xl font-extrabold md:text-4xl">Add a lecture</h1>
       <p className="mt-1 text-muted-foreground">Upload a file or import directly from a link.</p>
 
+      {tracking ? (
+        <div className="mt-8 max-w-2xl">
+          <ProcessingTracker
+            lectureId={tracking.id}
+            title={tracking.title}
+            onCancel={() => setTracking(null)}
+          />
+        </div>
+      ) : (
       <div className="mt-8 grid gap-6 lg:grid-cols-2">
         {/* ============ OPTION 1: FILE UPLOAD ============ */}
         <Card className="rounded-3xl border-border/50 p-6 shadow-card">
