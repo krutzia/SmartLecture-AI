@@ -340,8 +340,11 @@ const Upload = () => {
       .invoke("process-lecture", { body: { lectureId: lecture.id, userId: user.id } })
       .catch((e) => console.warn("process-lecture invoke error:", e));
     setSaving(false);
+    setConfirmOpen(false);
+    setPreview(null);
+    setUrl("");
     toast({ title: "Lecture saved!", description: "AI is generating your study materials ✨" });
-    navigate(`/lecture/${lecture.id}`);
+    setTracking({ id: lecture.id, title: confirmTitle.trim() });
   };
 
   const Icon = file ? fileIcon(detectSource(file)) : UploadIcon;
