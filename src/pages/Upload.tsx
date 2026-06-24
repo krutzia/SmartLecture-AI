@@ -196,10 +196,14 @@ const Upload = () => {
       setProgress(60);
 
       toast({ title: "Upload complete!", description: "AI is now working its magic ✨" });
-      const { error: fnErr } = await supabase.functions.invoke("process-lecture", { body: { lectureId: lecture.id, userId: user.id } });
-      if (fnErr) console.warn("process-lecture invoke error:", fnErr);
+      // Fire-and-forget — tracker will poll progress.
+      supabase.functions
+        .invoke("process-lecture", { body: { lectureId: lecture.id, userId: user.id } })
+        .catch((e) => console.warn("process-lecture invoke error:", e));
       setProgress(100);
-      navigate(`/lecture/${lecture.id}`);
+      setBusy(false);
+      setFile(null);
+      setTracking({ id: lecture.id, title: lecture.title });
     } catch (e: any) {
       console.error(e);
       toast({ title: "Upload failed", description: e?.message ?? "Please try again", variant: "destructive" });
