@@ -124,7 +124,7 @@ type JobError = {
 
 const Upload = () => {
   const { user } = useAuth();
-  const navigate = useNavigate();
+  
   const [file, setFile] = useState<File | null>(null);
   const [progress, setProgress] = useState(0);
   const [busy, setBusy] = useState(false);
