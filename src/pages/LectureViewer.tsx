@@ -14,6 +14,7 @@ import { FlashcardsTab } from "@/components/lecture/FlashcardsTab";
 import { ChatTab } from "@/components/lecture/ChatTab";
 import { MindMapTab } from "@/components/lecture/MindMapTab";
 import { QuizTab } from "@/components/lecture/QuizTab";
+import { ExportMenu } from "@/components/lecture/ExportMenu";
 
 type Lecture = { id: string; title: string; status: string; source_type: string; error_message: string | null };
 
@@ -115,7 +116,10 @@ const LectureViewer = () => {
         <Link to="/library"><ArrowLeft className="mr-1 h-4 w-4" /> Library</Link>
       </Button>
 
-      <h1 className="font-display text-3xl font-extrabold md:text-4xl">{lecture.title}</h1>
+      <div className="flex items-start justify-between gap-3">
+        <h1 className="font-display text-3xl font-extrabold md:text-4xl">{lecture.title}</h1>
+        {lecture.status === "done" && <ExportMenu lectureId={lecture.id} lectureTitle={lecture.title} />}
+      </div>
 
       {isProcessing && (
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
