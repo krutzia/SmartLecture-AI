@@ -88,12 +88,7 @@ export const SummaryTab = ({ lectureId }: { lectureId: string }) => {
         </Card>
       )}
       {summary.detailed && (
-        <Section
-          title="📝 Detailed notes"
-          text={summary.detailed}
-          copyKey="detailed"
-          footer={<ListenPlayer text={summary.detailed} downloadName="detailed-notes" mode="full" lectureId={lectureId} section="detailed" />}
-        />
+        <Section title="📝 Detailed notes" text={summary.detailed} copyKey="detailed" />
       )}
     </div>
   );
