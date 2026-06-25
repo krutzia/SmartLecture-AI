@@ -6,7 +6,6 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "@/hooks/use-toast";
-import { ListenPlayer } from "./ListenPlayer";
 
 type Summary = { quick: string | null; detailed: string | null; bullets: string[]; takeaways: string[] };
 
@@ -64,9 +63,7 @@ export const SummaryTab = ({ lectureId }: { lectureId: string }) => {
   return (
     <div className="space-y-6">
       {summary.quick && (
-        <Section title="✨ Quick summary" text={summary.quick} copyKey="quick">
-          <ListenPlayer text={summary.quick} downloadName="quick-summary" mode="compact" lectureId={lectureId} section="quick" />
-        </Section>
+        <Section title="✨ Quick summary" text={summary.quick} copyKey="quick" />
       )}
       {summary.bullets?.length > 0 && (
         <Section title="💡 Bullet points" text={summary.bullets.map((b) => `- ${b}`).join("\n")} copyKey="bullets" />
@@ -91,12 +88,7 @@ export const SummaryTab = ({ lectureId }: { lectureId: string }) => {
         </Card>
       )}
       {summary.detailed && (
-        <Section
-          title="📝 Detailed notes"
-          text={summary.detailed}
-          copyKey="detailed"
-          footer={<ListenPlayer text={summary.detailed} downloadName="detailed-notes" mode="full" lectureId={lectureId} section="detailed" />}
-        />
+        <Section title="📝 Detailed notes" text={summary.detailed} copyKey="detailed" />
       )}
     </div>
   );
