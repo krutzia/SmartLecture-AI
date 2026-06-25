@@ -6,7 +6,6 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "@/hooks/use-toast";
-import { ListenPlayer } from "./ListenPlayer";
 
 type Summary = { quick: string | null; detailed: string | null; bullets: string[]; takeaways: string[] };
 
