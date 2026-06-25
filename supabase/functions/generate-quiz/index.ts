@@ -30,7 +30,6 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Verify ownership and load context
     const { data: lecture } = await admin
       .from("lectures")
       .select("id,title,user_id")
@@ -54,7 +53,7 @@ Deno.serve(async (req) => {
       summary?.quick ? `QUICK SUMMARY:\n${summary.quick}` : "",
       summary?.detailed ? `DETAILED NOTES:\n${summary.detailed}` : "",
       Array.isArray(summary?.bullets) && summary!.bullets.length
-        ? `BULLETS:\n${(summary!.bullets as string[]).join("\n- ")}`
+        ? `BULLETS:\n- ${(summary!.bullets as string[]).join("\n- ")}`
         : "",
       concepts?.length
         ? `KEY CONCEPTS:\n${concepts.map((c: any) => `- ${c.term}: ${c.definition ?? ""}`).join("\n")}`
@@ -71,6 +70,18 @@ Deno.serve(async (req) => {
       });
     }
 
+    // Detect if lecture is CS-related → permit coding questions
+    const csSignal = /\b(algorithm|function|variable|class|method|syntax|loop|array|recursion|compile|programming|python|java|javascript|typescript|c\+\+|sql|api|data structure|big-?o|complexity)\b/i;
+    const allowCoding = csSignal.test(context);
+
+    const typeInstr = `Mix question TYPES for variety. Allowed types:
+- "mcq": classic multiple choice with exactly 4 options and one correct_index (0-3).
+- "tf": true/false. Provide "answer" as boolean (true or false).
+- "fib": fill-in-the-blank. The "question" must contain "____" where the answer goes. Provide "answer" as a SHORT string (1-4 words) — the canonical correct answer.
+${allowCoding ? `- "coding": small programming question. Provide "language" (e.g. "python"), optional "starter_code", and "answer" containing a reference solution. Also set "expected_output" if appropriate.` : ""}
+
+Target rough mix: ~50% mcq, ~20% tf, ~20% fib${allowCoding ? `, ~10% coding` : ""}. Always include a brief "explanation" citing the lecture material. Each question MUST set "topic" (1-3 words) for analytics.`;
+
     const aiRes = await fetch(LOVABLE_AI_URL, {
       method: "POST",
       headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
@@ -80,13 +91,16 @@ Deno.serve(async (req) => {
           {
             role: "system",
             content:
-              "You are an expert teacher. Create rigorous but fair multiple-choice quiz questions strictly grounded in the provided lecture material. Each question must have exactly 4 options with one clearly correct answer. Vary difficulty. Always include a brief explanation citing the material.",
+              "You are an expert teacher. Create rigorous, fair quiz questions strictly grounded in the provided lecture material. Vary difficulty and question types. Always include a brief explanation citing the material.",
           },
           {
             role: "user",
-            content: focusTopic
-              ? `Generate ${numQuestions} multiple-choice questions for the lecture titled "${lecture.title}", FOCUSED specifically on the topic/concept: "${focusTopic}". Every question must directly relate to that topic. Set the "topic" field on each question to "${focusTopic}".\n\nLECTURE MATERIAL:\n${context}`
-              : `Generate ${numQuestions} multiple-choice questions for the lecture titled "${lecture.title}".\n\nLECTURE MATERIAL:\n${context}`,
+            content: `${typeInstr}
+
+Generate ${numQuestions} questions for the lecture titled "${lecture.title}"${focusTopic ? `, FOCUSED on the topic "${focusTopic}". Set the "topic" field on every question to "${focusTopic}".` : "."}
+
+LECTURE MATERIAL:
+${context}`,
           },
         ],
         tools: [
@@ -94,7 +108,7 @@ Deno.serve(async (req) => {
             type: "function",
             function: {
               name: "submit_quiz",
-              description: "Return a multiple-choice quiz",
+              description: "Return a mixed-type quiz",
               parameters: {
                 type: "object",
                 properties: {
@@ -103,19 +117,23 @@ Deno.serve(async (req) => {
                     items: {
                       type: "object",
                       properties: {
+                        type: { type: "string", enum: allowCoding ? ["mcq", "tf", "fib", "coding"] : ["mcq", "tf", "fib"] },
                         question: { type: "string" },
-                        topic: { type: "string", description: "Short 1-3 word topic label for analytics" },
-                        options: { type: "array", items: { type: "string" }, minItems: 4, maxItems: 4 },
-                        correct_index: { type: "integer", minimum: 0, maximum: 3 },
+                        topic: { type: "string" },
+                        options: { type: "array", items: { type: "string" } },
+                        correct_index: { type: "integer" },
+                        answer: { type: "string" },
+                        tf_answer: { type: "boolean", description: "Use for tf questions (true/false)" },
+                        language: { type: "string" },
+                        starter_code: { type: "string" },
+                        expected_output: { type: "string" },
                         explanation: { type: "string" },
                       },
-                      required: ["question", "topic", "options", "correct_index", "explanation"],
-                      additionalProperties: false,
+                      required: ["type", "question", "topic", "explanation"],
                     },
                   },
                 },
                 required: ["questions"],
-                additionalProperties: false,
               },
             },
           },
@@ -128,14 +146,12 @@ Deno.serve(async (req) => {
       const t = await aiRes.text();
       if (aiRes.status === 429) {
         return new Response(JSON.stringify({ error: "Rate limit reached, try again in a moment." }), {
-          status: 429,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
       if (aiRes.status === 402) {
         return new Response(JSON.stringify({ error: "AI credits exhausted. Add funds in Settings." }), {
-          status: 402,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
       throw new Error(`AI gateway ${aiRes.status}: ${t}`);
@@ -145,10 +161,40 @@ Deno.serve(async (req) => {
     const toolCall = aiJson.choices?.[0]?.message?.tool_calls?.[0];
     if (!toolCall) throw new Error("No quiz returned");
     const args = JSON.parse(toolCall.function.arguments);
-    const questions = (args.questions ?? []).filter(
-      (q: any) =>
-        q && Array.isArray(q.options) && q.options.length === 4 && Number.isInteger(q.correct_index),
-    );
+
+    const questions = (args.questions ?? [])
+      .map((q: any) => {
+        const t = (q?.type || "mcq").toLowerCase();
+        const base = {
+          type: t,
+          question: String(q?.question ?? "").trim(),
+          topic: String(q?.topic ?? "Quiz").trim().slice(0, 40) || "Quiz",
+          explanation: String(q?.explanation ?? "").trim(),
+        };
+        if (t === "mcq") {
+          if (!Array.isArray(q.options) || q.options.length !== 4 || !Number.isInteger(q.correct_index)) return null;
+          return { ...base, options: q.options.map((o: any) => String(o)), correct_index: q.correct_index };
+        }
+        if (t === "tf") {
+          const ans = typeof q.tf_answer === "boolean" ? q.tf_answer : /^true$/i.test(String(q.answer));
+          return { ...base, answer: ans };
+        }
+        if (t === "fib") {
+          if (!q.answer) return null;
+          return { ...base, answer: String(q.answer).trim() };
+        }
+        if (t === "coding") {
+          return {
+            ...base,
+            language: String(q.language ?? "python"),
+            starter_code: String(q.starter_code ?? ""),
+            answer: String(q.answer ?? ""),
+            expected_output: q.expected_output ? String(q.expected_output) : undefined,
+          };
+        }
+        return null;
+      })
+      .filter(Boolean);
 
     if (questions.length === 0) throw new Error("Quiz had no valid questions");
 
