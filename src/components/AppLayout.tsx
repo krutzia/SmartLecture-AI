@@ -5,6 +5,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { LogOut, Search } from "lucide-react";
 import { GlobalCommandPalette } from "@/components/GlobalCommandPalette";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
 export const AppLayout = () => {
   const { user, signOut } = useAuth();
@@ -45,6 +46,7 @@ export const AppLayout = () => {
               >
                 <Search className="h-4 w-4" />
               </Button>
+              <ThemeToggle />
               <span className="hidden text-sm text-muted-foreground sm:inline">{user?.email}</span>
               <Button variant="ghost" size="sm" onClick={signOut} className="gap-2">
                 <LogOut className="h-4 w-4" />
