@@ -19,25 +19,62 @@ Deno.serve(async (req) => {
     const { lectureId, userId, messages } = await req.json();
     if (!lectureId || !userId || !Array.isArray(messages)) throw new Error("lectureId, userId and messages required");
 
-    // Verify ownership and fetch context
     const { data: lecture } = await admin.from("lectures").select("id,title,user_id").eq("id", lectureId).eq("user_id", userId).single();
     if (!lecture) throw new Error("Lecture not found");
 
-    const { data: transcript } = await admin.from("transcripts").select("full_text").eq("lecture_id", lectureId).maybeSingle();
-    const { data: summary } = await admin.from("summaries").select("quick,detailed").eq("lecture_id", lectureId).maybeSingle();
+    const [{ data: transcript }, { data: summary }, { data: concepts }] = await Promise.all([
+      admin.from("transcripts").select("full_text,segments").eq("lecture_id", lectureId).maybeSingle(),
+      admin.from("summaries").select("quick,detailed,bullets,takeaways").eq("lecture_id", lectureId).maybeSingle(),
+      admin.from("concepts").select("term,definition").eq("lecture_id", lectureId),
+    ]);
 
-    const transcriptText = (transcript?.full_text ?? "").slice(0, 25000);
+    const transcriptText = (transcript?.full_text ?? "").slice(0, 22000);
     const summaryText = summary?.detailed ?? summary?.quick ?? "";
+    const bullets = Array.isArray(summary?.bullets) ? (summary!.bullets as string[]) : [];
+    const conceptList = (concepts ?? [])
+      .map((c: any) => `- ${c.term}${c.definition ? `: ${c.definition}` : ""}`)
+      .join("\n");
 
-    const systemPrompt = `You are a friendly study buddy helping a student understand a lecture titled "${lecture.title}".
+    // Build pseudo-"slides" by chunking the detailed notes / bullets so the
+    // model can answer "Explain slide N" referentially. If detailed notes
+    // exist, split by blank lines; otherwise fall back to bullets.
+    const slideChunks: string[] = (() => {
+      if (summary?.detailed) {
+        return summary.detailed
+          .split(/\n{2,}/)
+          .map((s: string) => s.trim())
+          .filter(Boolean)
+          .slice(0, 30);
+      }
+      return bullets.slice(0, 30);
+    })();
+    const slideIndex = slideChunks.length
+      ? slideChunks.map((s, i) => `Slide ${i + 1}: ${s.slice(0, 400)}`).join("\n\n")
+      : "(no slides available)";
 
-Use the lecture content below to answer questions. Be warm, encouraging, and clear. Use markdown formatting (headings, lists, **bold**). When asked to "explain simply", use plain language and analogies. When asked for examples, give concrete ones.
+    const systemPrompt = `You are a lecture-aware study buddy for the lecture titled "${lecture.title}". You ONLY answer using the lecture material below. If something is not covered, say so plainly instead of inventing.
 
-=== LECTURE SUMMARY ===
-${summaryText}
+Capabilities:
+- Answer questions about specific concepts, examples, or quotes from the lecture.
+- When the user says "Explain slide N" or "What did the professor say about X", locate the relevant slide/section below and reference it by number (e.g. "On slide 3, the professor explained…").
+- When the user says "Ask me questions" or "Quiz me", switch into Socratic mode: ask ONE focused question at a time grounded in the lecture, wait for the student's answer, then give brief feedback (correct / partial / incorrect + why) and ask the next question. After ~5 questions give a tiny summary of what they got right/wrong.
+- When asked for examples, give concrete ones from the lecture or analogies tied to its content.
+- Use markdown (headings, lists, **bold**, code blocks where relevant). Be warm, concise, and clear.
 
-=== LECTURE TRANSCRIPT ===
-${transcriptText}`;
+=== LECTURE QUICK SUMMARY ===
+${summary?.quick ?? "(none)"}
+
+=== KEY CONCEPTS ===
+${conceptList || "(none)"}
+
+=== SLIDES / SECTIONS ===
+${slideIndex}
+
+=== DETAILED NOTES ===
+${summaryText || "(none)"}
+
+=== FULL TRANSCRIPT ===
+${transcriptText || "(none)"}`;
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",

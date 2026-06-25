@@ -1,12 +1,19 @@
 import { getDeviceId } from "@/lib/deviceId";
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
-import { ChevronLeft, ChevronRight, RotateCw, Zap, Target, Smile, Trophy } from "lucide-react";
+import { ChevronLeft, ChevronRight, RotateCw, Zap, Target, Smile, Trophy, CheckCircle2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { sm2, QUALITY } from "@/lib/sm2";
+
+const difficultyOf = (ef: number, reps: number): { label: string; cls: string } => {
+  if (reps === 0) return { label: "New", cls: "bg-secondary text-secondary-foreground" };
+  if (ef >= 2.5) return { label: "Easy", cls: "bg-success-soft text-success" };
+  if (ef >= 2.0) return { label: "Medium", cls: "bg-primary-soft text-primary" };
+  return { label: "Hard", cls: "bg-destructive/10 text-destructive" };
+};
 
 type Flashcard = {
   id: string;
@@ -131,6 +138,13 @@ export const FlashcardsTab = ({ lectureId }: { lectureId: string }) => {
 
   const card = filtered[Math.min(idx, filtered.length - 1)];
   const knownCount = cards.filter((c) => c.known).length;
+  const difficulty = difficultyOf(card.ease_factor, card.repetitions);
+
+  const toggleLearned = async () => {
+    const nextKnown = !card.known;
+    await supabase.from("flashcards").update({ known: nextKnown }).eq("id", card.id);
+    setCards((prev) => prev.map((x) => (x.id === card.id ? { ...x, known: nextKnown } : x)));
+  };
 
   return (
     <div className="mx-auto max-w-2xl">
@@ -139,10 +153,18 @@ export const FlashcardsTab = ({ lectureId }: { lectureId: string }) => {
           Card {Math.min(idx + 1, filtered.length)} of {filtered.length}
         </span>
         <div className="flex items-center gap-2">
-          <span className="rounded-full bg-primary-soft px-3 py-1 text-xs font-bold text-primary">
-            {dueCount} due
-          </span>
-          <span className="rounded-full bg-success-soft px-3 py-1 text-xs font-bold text-success">{knownCount} known</span>
+          <span className={`rounded-full px-3 py-1 text-xs font-bold ${difficulty.cls}`}>{difficulty.label}</span>
+          <span className="rounded-full bg-primary-soft px-3 py-1 text-xs font-bold text-primary">{dueCount} due</span>
+          <span className="rounded-full bg-success-soft px-3 py-1 text-xs font-bold text-success">{knownCount} learned</span>
+          <Button
+            variant={card.known ? "default" : "outline"}
+            size="sm"
+            onClick={toggleLearned}
+            className={`rounded-full text-xs ${card.known ? "bg-success text-success-foreground hover:bg-success/90" : ""}`}
+          >
+            <CheckCircle2 className="mr-1 h-3.5 w-3.5" />
+            {card.known ? "Learned" : "Mark as learned"}
+          </Button>
           <Button
             variant="ghost"
             size="sm"

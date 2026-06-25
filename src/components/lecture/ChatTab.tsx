@@ -12,10 +12,10 @@ import { toast } from "@/hooks/use-toast";
 type Msg = { role: "user" | "assistant"; content: string };
 
 const QUICK_ACTIONS = [
-  "Explain this simply",
+  "Explain slide 1",
   "Give me examples",
-  "Summarize again",
-  "Quiz me on this",
+  "Ask me questions",
+  "What did the professor say about…",
 ];
 
 export const ChatTab = ({ lectureId, lectureTitle }: { lectureId: string; lectureTitle: string }) => {
@@ -134,7 +134,9 @@ export const ChatTab = ({ lectureId, lectureTitle }: { lectureId: string; lectur
               <Sparkles className="h-6 w-6 text-ai" />
             </div>
             <h3 className="font-display text-lg font-bold">Ask me anything!</h3>
-            <p className="mt-1 max-w-sm text-sm text-muted-foreground">I've read the whole lecture and I'm ready to help you understand it.</p>
+            <p className="mt-1 max-w-sm text-sm text-muted-foreground">
+              I've read the whole lecture. Try <em>"Explain slide 3"</em>, <em>"What did the professor say about X?"</em>, or <em>"Ask me questions"</em> for a Socratic quiz.
+            </p>
           </div>
         )}
         <div className="space-y-4">
