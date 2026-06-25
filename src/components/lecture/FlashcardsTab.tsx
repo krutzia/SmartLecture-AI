@@ -1,12 +1,19 @@
 import { getDeviceId } from "@/lib/deviceId";
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
-import { ChevronLeft, ChevronRight, RotateCw, Zap, Target, Smile, Trophy } from "lucide-react";
+import { ChevronLeft, ChevronRight, RotateCw, Zap, Target, Smile, Trophy, CheckCircle2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { sm2, QUALITY } from "@/lib/sm2";
+
+const difficultyOf = (ef: number, reps: number): { label: string; cls: string } => {
+  if (reps === 0) return { label: "New", cls: "bg-secondary text-secondary-foreground" };
+  if (ef >= 2.5) return { label: "Easy", cls: "bg-success-soft text-success" };
+  if (ef >= 2.0) return { label: "Medium", cls: "bg-primary-soft text-primary" };
+  return { label: "Hard", cls: "bg-destructive/10 text-destructive" };
+};
 
 type Flashcard = {
   id: string;
