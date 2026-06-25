@@ -23,7 +23,7 @@ import { StudyHeatmap } from "@/components/StudyHeatmap";
 import { WeakTopicCoach } from "@/components/WeakTopicCoach";
 
 type Session = { minutes: number; created_at: string; activity: string };
-type Attempt = { topic: string | null; correct: boolean; created_at: string };
+type Attempt = { topic: string | null; correct: boolean; created_at: string; flashcard_id: string | null };
 
 const fmtDay = (d: Date) => d.toLocaleDateString(undefined, { weekday: "short" });
 
@@ -39,7 +39,7 @@ const Analytics = () => {
       const sinceIso = since.toISOString();
       const [{ data: s }, { data: a }] = await Promise.all([
         supabase.from("study_sessions").select("minutes,created_at,activity").gte("created_at", sinceIso),
-        supabase.from("quiz_attempts").select("topic,correct,created_at").gte("created_at", sinceIso),
+        supabase.from("quiz_attempts").select("topic,correct,created_at,flashcard_id").gte("created_at", sinceIso),
       ]);
       setSessions((s ?? []) as Session[]);
       setAttempts((a ?? []) as Attempt[]);
@@ -121,10 +121,14 @@ const Analytics = () => {
     return s;
   }, [studyByDay]);
 
+  const totalHours = totalMinutes / 60;
+  const studyDisplay = totalHours >= 1 ? `${totalHours.toFixed(1)}h` : `${Math.round(totalMinutes)}m`;
+  const flashcardsCompleted = attempts.filter((a) => a.flashcard_id).length;
+
   const stats = [
-    { label: "Study time (30d)", value: `${Math.round(totalMinutes)}m`, Icon: Clock, color: "bg-primary-soft text-primary" },
+    { label: "Total studied (30d)", value: studyDisplay, Icon: Clock, color: "bg-primary-soft text-primary" },
     { label: "Quiz accuracy", value: `${overallAccuracy}%`, Icon: Target, color: "bg-success-soft text-success" },
-    { label: "Questions answered", value: totalAttempts, Icon: Brain, color: "bg-ai-soft text-ai" },
+    { label: "Flashcards reviewed", value: flashcardsCompleted, Icon: Brain, color: "bg-ai-soft text-ai" },
     { label: "Day streak", value: `${streak} 🔥`, Icon: Trophy, color: "bg-accent text-accent-foreground" },
   ];
 
