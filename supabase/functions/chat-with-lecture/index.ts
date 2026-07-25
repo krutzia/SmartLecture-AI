@@ -16,8 +16,9 @@ Deno.serve(async (req) => {
 
     const admin = createClient(SUPABASE_URL, SERVICE_KEY);
 
-    const { lectureId, userId, messages } = await req.json();
-    if (!lectureId || !userId || !Array.isArray(messages)) throw new Error("lectureId, userId and messages required");
+    const { lectureId, userId, messages, mode } = await req.json();
+    if (!lectureId || !userId) throw new Error("lectureId and userId required");
+    if (mode !== "slides" && !Array.isArray(messages)) throw new Error("messages required");
 
     const { data: lecture } = await admin.from("lectures").select("id,title,user_id").eq("id", lectureId).eq("user_id", userId).single();
     if (!lecture) throw new Error("Lecture not found");
