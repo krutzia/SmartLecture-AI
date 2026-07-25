@@ -6,9 +6,11 @@ import { Button } from "@/components/ui/button";
 import { LogOut, Search } from "lucide-react";
 import { GlobalCommandPalette } from "@/components/GlobalCommandPalette";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 export const AppLayout = () => {
   const { user, signOut } = useAuth();
+  const isMobile = useIsMobile();
   const isMac = typeof navigator !== "undefined" && /Mac|iPod|iPhone|iPad/.test(navigator.platform);
 
   const openPalette = () => {
@@ -18,13 +20,16 @@ export const AppLayout = () => {
   };
 
   return (
-    <SidebarProvider>
+    // On small screens the sidebar is an off-canvas drawer that starts closed,
+    // so it never covers the chat / lecture content on first render.
+    <SidebarProvider defaultOpen={!isMobile}>
       <GlobalCommandPalette />
       <div className="flex min-h-screen w-full bg-gradient-cream">
         <AppSidebar />
-        <div className="flex flex-1 flex-col">
+        <div className="flex min-w-0 flex-1 flex-col">
           <header className="flex h-14 items-center justify-between gap-3 border-b border-border/50 bg-background/70 px-4 backdrop-blur">
-            <SidebarTrigger />
+            <SidebarTrigger aria-label="Toggle navigation" />
+
             <button
               onClick={openPalette}
               className="hidden flex-1 max-w-md items-center gap-2 rounded-full border border-border/60 bg-background/60 px-3.5 py-1.5 text-left text-sm text-muted-foreground transition hover:border-primary/40 hover:bg-background sm:flex"

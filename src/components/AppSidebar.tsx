@@ -15,12 +15,15 @@ const items = [
 ];
 
 export function AppSidebar() {
-  const { state } = useSidebar();
-  const collapsed = state === "collapsed";
+  const { state, isMobile, setOpenMobile } = useSidebar();
+  // On mobile the sidebar renders inside a Sheet (drawer) and is never collapsed.
+  const collapsed = !isMobile && state === "collapsed";
   const location = useLocation();
+  const closeOnMobile = () => { if (isMobile) setOpenMobile(false); };
 
   return (
-    <Sidebar collapsible="icon" className="border-r border-sidebar-border">
+    <Sidebar collapsible={isMobile ? "offcanvas" : "icon"} className="border-r border-sidebar-border">
+
       <SidebarHeader className="px-4 py-5">
         <NavLink to="/dashboard" className="flex items-center gap-2">
           <img src={logoAsset.url} alt="SmartLecture" className="h-9 w-9 object-contain" />
