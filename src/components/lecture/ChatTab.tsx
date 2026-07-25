@@ -1,6 +1,6 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
-import { Send, Sparkles } from "lucide-react";
+import { Send, Sparkles, HelpCircle, X, PanelRightOpen, CornerDownLeft } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
@@ -19,12 +19,26 @@ const QUICK_ACTIONS = [
   "What did the professor say about…",
 ];
 
+const COMMANDS: { cmd: string; what: string; example: string }[] = [
+  { cmd: "Explain slide N", what: "Deep-dive one slide with a quoted excerpt", example: "Explain slide 12" },
+  { cmd: "Summarize again", what: "A fresh TL;DR + key bullets, any depth", example: "Summarize again, simpler" },
+  { cmd: "What did the professor say about X", what: "Finds and quotes the transcript", example: "What did the professor say about TCP?" },
+  { cmd: "Give me examples", what: "Concrete examples from the lecture", example: "Give me examples of hashing" },
+  { cmd: "Ask me questions", what: "Socratic quiz, one question at a time", example: "Ask me questions" },
+  { cmd: "Compare X and Y", what: "Contrast two concepts from the lecture", example: "Compare TCP and UDP" },
+];
+
+const CITATION_RE = /\[\[slide:(\d+)\]\]/g;
 
 export const ChatTab = ({ lectureId, lectureTitle }: { lectureId: string; lectureTitle: string }) => {
   const { user } = useAuth();
   const [messages, setMessages] = useState<Msg[]>([]);
   const [input, setInput] = useState("");
   const [streaming, setStreaming] = useState(false);
+  const [showHelp, setShowHelp] = useState(false);
+  const [slides, setSlides] = useState<string[]>([]);
+  const [activeSlide, setActiveSlide] = useState<number | null>(null);
+  const [slideInput, setSlideInput] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -34,6 +48,32 @@ export const ChatTab = ({ lectureId, lectureTitle }: { lectureId: string; lectur
     };
     load();
   }, [lectureId]);
+
+  // Load the slide/section index so citations and "jump to slide" can show content.
+  useEffect(() => {
+    if (!user) return;
+    let cancelled = false;
+    const loadSlides = async () => {
+      try {
+        const resp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/chat-with-lecture`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+            Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+          },
+          body: JSON.stringify({ lectureId, userId: user.id, mode: "slides" }),
+        });
+        if (!resp.ok) return;
+        const json = await resp.json();
+        if (!cancelled && Array.isArray(json.slides)) setSlides(json.slides);
+      } catch {
+        /* slide panel is optional */
+      }
+    };
+    loadSlides();
+    return () => { cancelled = true; };
+  }, [lectureId, user?.id]);
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
@@ -109,6 +149,10 @@ export const ChatTab = ({ lectureId, lectureTitle }: { lectureId: string; lectur
 
       if (assistantSoFar) {
         await supabase.from("chat_messages").insert({ lecture_id: lectureId, user_id: user.id, role: "assistant", content: assistantSoFar });
+        // Auto-open the slide panel on the first slide the answer cited.
+        const first = CITATION_RE.exec(assistantSoFar);
+        CITATION_RE.lastIndex = 0;
+        if (first) openSlide(Number(first[1]));
       }
     } catch (e: any) {
       toast({ title: "Chat error", description: e?.message ?? "Try again", variant: "destructive" });
@@ -117,75 +161,232 @@ export const ChatTab = ({ lectureId, lectureTitle }: { lectureId: string; lectur
     }
   };
 
-  return (
-    <Card className="flex h-[70vh] flex-col rounded-3xl border-border/50 shadow-card">
-      <div className="flex items-center gap-2 border-b border-border/50 px-5 py-3">
-        <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-ai text-white">
-          <Sparkles className="h-4 w-4" />
-        </div>
-        <div>
-          <div className="font-display font-bold leading-none">Study buddy</div>
-          <div className="text-xs text-muted-foreground">Knows "{lectureTitle}" cold</div>
-        </div>
-      </div>
+  const openSlide = (n: number) => {
+    if (!slides.length) {
+      toast({ title: "No slides indexed", description: "This lecture has no slide/section breakdown yet." });
+      return;
+    }
+    const clamped = Math.min(Math.max(n, 1), slides.length);
+    setActiveSlide(clamped);
+  };
 
-      <ScrollArea className="flex-1 px-5 py-4" ref={scrollRef as any}>
-        {messages.length === 0 && (
-          <div className="flex h-full flex-col items-center justify-center text-center">
-            <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-ai-soft">
-              <Sparkles className="h-6 w-6 text-ai" />
+  const jumpToSlide = (e: React.FormEvent) => {
+    e.preventDefault();
+    const n = parseInt(slideInput, 10);
+    if (!Number.isFinite(n)) return;
+    if (slides.length && (n < 1 || n > slides.length)) {
+      toast({ title: `Slide ${n} doesn't exist`, description: `This lecture has ${slides.length} slides.`, variant: "destructive" });
+      return;
+    }
+    openSlide(n);
+    send(`Explain slide ${n}`);
+    setSlideInput("");
+  };
+
+  return (
+    <div className="flex flex-col gap-4 lg:flex-row">
+      <Card className="flex h-[70vh] min-w-0 flex-1 flex-col rounded-3xl border-border/50 shadow-card">
+        <div className="flex items-center gap-2 border-b border-border/50 px-5 py-3">
+          <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-ai text-white">
+            <Sparkles className="h-4 w-4" />
+          </div>
+          <div className="min-w-0">
+            <div className="font-display font-bold leading-none">Study buddy</div>
+            <div className="truncate text-xs text-muted-foreground">Knows "{lectureTitle}" cold</div>
+          </div>
+          <div className="ml-auto flex items-center gap-1">
+            {slides.length > 0 && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="gap-1.5 lg:hidden"
+                onClick={() => openSlide(activeSlide ?? 1)}
+              >
+                <PanelRightOpen className="h-4 w-4" />
+                Slides
+              </Button>
+            )}
+            <Button variant="ghost" size="sm" onClick={() => setShowHelp((s) => !s)} className="gap-1.5">
+              <HelpCircle className="h-4 w-4" />
+              <span className="hidden sm:inline">Commands</span>
+            </Button>
+          </div>
+        </div>
+
+        {showHelp && (
+          <div className="border-b border-border/50 bg-muted/40 px-5 py-4">
+            <div className="mb-2 flex items-center justify-between">
+              <div className="font-display text-sm font-bold">What you can ask</div>
+              <button onClick={() => setShowHelp(false)} aria-label="Close help" className="text-muted-foreground hover:text-foreground">
+                <X className="h-4 w-4" />
+              </button>
             </div>
-            <h3 className="font-display text-lg font-bold">Ask me anything!</h3>
-            <p className="mt-1 max-w-sm text-sm text-muted-foreground">
-              I've read the whole lecture. Try <em>"Explain slide 3"</em>, <em>"What did the professor say about X?"</em>, or <em>"Ask me questions"</em> for a Socratic quiz.
-            </p>
+            <ul className="grid gap-2 sm:grid-cols-2">
+              {COMMANDS.map((c) => (
+                <li key={c.cmd} className="rounded-xl border border-border/50 bg-background/70 p-2.5">
+                  <code className="text-xs font-semibold text-primary">{c.cmd}</code>
+                  <p className="mt-0.5 text-xs text-muted-foreground">{c.what}</p>
+                  <button
+                    onClick={() => { setShowHelp(false); send(c.example); }}
+                    disabled={streaming}
+                    className="mt-1.5 inline-flex items-center gap-1 text-[11px] font-medium text-foreground/80 underline-offset-2 hover:underline disabled:opacity-50"
+                  >
+                    <CornerDownLeft className="h-3 w-3" />
+                    Try: "{c.example}"
+                  </button>
+                </li>
+              ))}
+            </ul>
           </div>
         )}
-        <div className="space-y-4">
-          {messages.map((m, i) => (
-            <div key={i} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
-              <div className={`max-w-[85%] rounded-2xl px-4 py-3 ${
-                m.role === "user"
-                  ? "bg-primary text-primary-foreground"
-                  : "bg-muted text-foreground"
-              }`}>
-                <div className="prose prose-sm max-w-none prose-p:my-1 prose-headings:my-2 prose-strong:text-foreground prose-ul:my-1">
-                  <ReactMarkdown>{m.content || "..."}</ReactMarkdown>
+
+        <ScrollArea className="flex-1 px-5 py-4" ref={scrollRef as any}>
+          {messages.length === 0 && (
+            <div className="flex h-full flex-col items-center justify-center text-center">
+              <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-ai-soft">
+                <Sparkles className="h-6 w-6 text-ai" />
+              </div>
+              <h3 className="font-display text-lg font-bold">Ask me anything!</h3>
+              <p className="mt-1 max-w-sm text-sm text-muted-foreground">
+                I've read the whole lecture. Try <em>"Explain slide 3"</em>, <em>"Summarize again"</em>, or press{" "}
+                <button onClick={() => setShowHelp(true)} className="font-medium text-primary underline-offset-2 hover:underline">Commands</button>{" "}
+                to see everything I understand.
+              </p>
+            </div>
+          )}
+          <div className="space-y-4">
+            {messages.map((m, i) => (
+              <div key={i} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
+                <div className={`max-w-[85%] rounded-2xl px-4 py-3 ${
+                  m.role === "user"
+                    ? "bg-primary text-primary-foreground"
+                    : "bg-muted text-foreground"
+                }`}>
+                  {m.role === "assistant" ? (
+                    <AssistantContent content={m.content} slides={slides} onCite={openSlide} />
+                  ) : (
+                    <div className="prose prose-sm max-w-none prose-p:my-1 prose-headings:my-2 prose-ul:my-1">
+                      <ReactMarkdown>{m.content || "..."}</ReactMarkdown>
+                    </div>
+                  )}
                 </div>
               </div>
-            </div>
-          ))}
-        </div>
-      </ScrollArea>
+            ))}
+          </div>
+        </ScrollArea>
 
-      <div className="border-t border-border/50 p-3">
-        <div className="mb-2 flex flex-wrap gap-2">
-          {QUICK_ACTIONS.map((a) => (
-            <button
-              key={a}
-              onClick={() => send(a)}
+        <div className="border-t border-border/50 p-3">
+          <div className="mb-2 flex flex-wrap items-center gap-2">
+            {QUICK_ACTIONS.map((a) => (
+              <button
+                key={a}
+                onClick={() => send(a)}
+                disabled={streaming}
+                className="rounded-full bg-secondary px-3 py-1 text-xs font-medium text-secondary-foreground hover:bg-secondary/80 disabled:opacity-50"
+              >
+                {a}
+              </button>
+            ))}
+            <form onSubmit={jumpToSlide} className="flex items-center gap-1 rounded-full bg-secondary px-2 py-0.5">
+              <label htmlFor="slide-jump" className="text-xs font-medium text-secondary-foreground">Go to slide</label>
+              <input
+                id="slide-jump"
+                value={slideInput}
+                onChange={(e) => setSlideInput(e.target.value.replace(/\D/g, ""))}
+                inputMode="numeric"
+                placeholder={slides.length ? `1-${slides.length}` : "#"}
+                className="w-12 bg-transparent text-xs outline-none placeholder:text-muted-foreground"
+              />
+              <button type="submit" disabled={streaming || !slideInput} className="text-xs font-bold text-primary disabled:opacity-40">
+                Go
+              </button>
+            </form>
+          </div>
+          <form
+            onSubmit={(e) => { e.preventDefault(); send(input); }}
+            className="flex gap-2"
+          >
+            <Input
+              value={input} onChange={(e) => setInput(e.target.value)}
+              placeholder="Ask anything about the lecture..."
               disabled={streaming}
-              className="rounded-full bg-secondary px-3 py-1 text-xs font-medium text-secondary-foreground hover:bg-secondary/80 disabled:opacity-50"
-            >
-              {a}
-            </button>
-          ))}
+              className="h-11 rounded-full"
+            />
+            <Button type="submit" size="icon" disabled={streaming || !input.trim()} className="h-11 w-11 shrink-0 rounded-full">
+              <Send className="h-4 w-4" />
+            </Button>
+          </form>
         </div>
-        <form
-          onSubmit={(e) => { e.preventDefault(); send(input); }}
-          className="flex gap-2"
-        >
-          <Input
-            value={input} onChange={(e) => setInput(e.target.value)}
-            placeholder="Ask anything about the lecture..."
-            disabled={streaming}
-            className="h-11 rounded-full"
-          />
-          <Button type="submit" size="icon" disabled={streaming || !input.trim()} className="h-11 w-11 shrink-0 rounded-full">
-            <Send className="h-4 w-4" />
-          </Button>
-        </form>
-      </div>
-    </Card>
+      </Card>
+
+      {activeSlide !== null && slides[activeSlide - 1] && (
+        <Card className="flex h-[40vh] w-full flex-col rounded-3xl border-border/50 shadow-card lg:h-[70vh] lg:w-80 lg:shrink-0">
+          <div className="flex items-center justify-between border-b border-border/50 px-4 py-3">
+            <div>
+              <div className="font-display text-sm font-bold">Slide {activeSlide}</div>
+              <div className="text-xs text-muted-foreground">of {slides.length}</div>
+            </div>
+            <button onClick={() => setActiveSlide(null)} aria-label="Close slide panel" className="text-muted-foreground hover:text-foreground">
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+          <ScrollArea className="flex-1 px-4 py-3">
+            <div className="prose prose-sm max-w-none prose-p:my-1.5 prose-ul:my-1.5">
+              <ReactMarkdown>{slides[activeSlide - 1]}</ReactMarkdown>
+            </div>
+          </ScrollArea>
+          <div className="flex items-center gap-2 border-t border-border/50 p-3">
+            <Button variant="outline" size="sm" disabled={activeSlide <= 1} onClick={() => setActiveSlide(activeSlide - 1)}>Prev</Button>
+            <Button variant="outline" size="sm" disabled={activeSlide >= slides.length} onClick={() => setActiveSlide(activeSlide + 1)}>Next</Button>
+            <Button size="sm" className="ml-auto" disabled={streaming} onClick={() => send(`Explain slide ${activeSlide}`)}>Explain</Button>
+          </div>
+        </Card>
+      )}
+    </div>
+  );
+};
+
+/** Renders assistant markdown, turning [[slide:N]] markers into clickable citations. */
+const AssistantContent = ({
+  content,
+  slides,
+  onCite,
+}: {
+  content: string;
+  slides: string[];
+  onCite: (n: number) => void;
+}) => {
+  const parts = useMemo(() => {
+    const out: Array<{ type: "text"; value: string } | { type: "cite"; n: number }> = [];
+    let last = 0;
+    const re = new RegExp(CITATION_RE.source, "g");
+    let m: RegExpExecArray | null;
+    while ((m = re.exec(content)) !== null) {
+      if (m.index > last) out.push({ type: "text", value: content.slice(last, m.index) });
+      out.push({ type: "cite", n: Number(m[1]) });
+      last = m.index + m[0].length;
+    }
+    if (last < content.length) out.push({ type: "text", value: content.slice(last) });
+    return out;
+  }, [content]);
+
+  return (
+    <div className="prose prose-sm max-w-none prose-p:my-1 prose-headings:my-2 prose-strong:text-foreground prose-ul:my-1 prose-blockquote:my-2 prose-blockquote:border-l-primary/50 prose-blockquote:text-muted-foreground">
+      {parts.length === 0 && <ReactMarkdown>{content || "..."}</ReactMarkdown>}
+      {parts.map((p, i) =>
+        p.type === "text" ? (
+          <ReactMarkdown key={i}>{p.value}</ReactMarkdown>
+        ) : (
+          <button
+            key={i}
+            onClick={() => onCite(p.n)}
+            title={slides[p.n - 1]?.slice(0, 160) ?? `Slide ${p.n}`}
+            className="not-prose mx-0.5 inline-flex items-center rounded-full border border-primary/40 bg-primary/10 px-2 py-0.5 align-middle text-[11px] font-semibold text-primary transition hover:bg-primary/20"
+          >
+            Slide {p.n}
+          </button>
+        ),
+      )}
+    </div>
   );
 };
