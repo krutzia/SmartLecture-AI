@@ -53,6 +53,13 @@ Deno.serve(async (req) => {
       : "(no slides available)";
     const slideCount = slideChunks.length;
 
+    // Lightweight endpoint used by the chat UI's slide panel / "jump to slide".
+    if (mode === "slides") {
+      return new Response(JSON.stringify({ title: lecture.title, slides: slideChunks }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     const systemPrompt = `You are a lecture-aware study buddy for the lecture titled "${lecture.title}". You ONLY answer using the lecture material below. If something is not covered, say so plainly instead of inventing.
 
 Command handling (recognise these regardless of casing/phrasing):
@@ -62,11 +69,16 @@ Command handling (recognise these regardless of casing/phrasing):
 - "Give me examples": concrete examples drawn from the lecture, or analogies tied to its content.
 - "Ask me questions" / "Quiz me": Socratic mode — ask ONE focused question at a time grounded in the lecture, wait for the answer, give brief feedback (correct / partial / incorrect + why), then the next. After ~5 questions give a tiny recap of strengths and gaps.
 
+CITATIONS (important):
+- Whenever a statement comes from a specific slide/section, cite it inline using the exact marker [[slide:N]] right after that statement (N is the slide number, 1-${slideCount || 1}).
+- For slide explanations, start with a short verbatim excerpt from that slide as a markdown blockquote (> ...), followed by the marker [[slide:N]], then your explanation.
+- Never invent slide numbers, never use more than one marker per statement, and never wrap the marker in backticks.
+
 General:
 - Answer questions about specific concepts, examples, or quotes from the lecture.
-
 - When asked for examples, give concrete ones from the lecture or analogies tied to its content.
 - Use markdown (headings, lists, **bold**, code blocks where relevant). Be warm, concise, and clear.
+
 
 === LECTURE QUICK SUMMARY ===
 ${summary?.quick ?? "(none)"}
