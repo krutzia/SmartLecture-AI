@@ -25,7 +25,7 @@ export function AppSidebar() {
     <Sidebar collapsible={isMobile ? "offcanvas" : "icon"} className="border-r border-sidebar-border">
 
       <SidebarHeader className="px-4 py-5">
-        <NavLink to="/dashboard" className="flex items-center gap-2">
+        <NavLink to="/dashboard" onClick={closeOnMobile} className="flex items-center gap-2">
           <img src={logoAsset.url} alt="SmartLecture" className="h-9 w-9 object-contain" />
           {!collapsed && (
             <div className="font-display text-lg font-extrabold leading-none">
@@ -45,7 +45,7 @@ export function AppSidebar() {
                 return (
                   <SidebarMenuItem key={item.title}>
                     <SidebarMenuButton asChild isActive={active} className="rounded-xl">
-                      <NavLink to={item.url} end>
+                      <NavLink to={item.url} end onClick={closeOnMobile}>
                         <item.icon className="h-5 w-5" />
                         {!collapsed && <span className="font-medium">{item.title}</span>}
                       </NavLink>
