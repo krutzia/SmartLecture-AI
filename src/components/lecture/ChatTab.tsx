@@ -13,10 +13,12 @@ type Msg = { role: "user" | "assistant"; content: string };
 
 const QUICK_ACTIONS = [
   "Explain slide 1",
+  "Summarize again",
   "Give me examples",
   "Ask me questions",
   "What did the professor say about…",
 ];
+
 
 export const ChatTab = ({ lectureId, lectureTitle }: { lectureId: string; lectureTitle: string }) => {
   const { user } = useAuth();
