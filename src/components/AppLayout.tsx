@@ -3,9 +3,10 @@ import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
-import { LogOut, Search } from "lucide-react";
+import { Search } from "lucide-react";
 import { GlobalCommandPalette } from "@/components/GlobalCommandPalette";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { SignOutButton } from "@/components/SignOutButton";
 import { useIsMobile } from "@/hooks/use-mobile";
 
 export const AppLayout = () => {
