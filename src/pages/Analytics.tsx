@@ -1,3 +1,4 @@
+import { getDeviceId } from "@/lib/deviceId";
 import { useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import { TrendingUp, Clock, Target, Brain, Sparkles, Trophy } from "lucide-react";
