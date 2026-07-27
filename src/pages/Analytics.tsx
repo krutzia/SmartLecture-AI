@@ -34,12 +34,13 @@ const Analytics = () => {
 
   useEffect(() => {
     const load = async () => {
+      const userId = getDeviceId();
       const since = new Date();
       since.setDate(since.getDate() - 90);
       const sinceIso = since.toISOString();
       const [{ data: s }, { data: a }] = await Promise.all([
-        supabase.from("study_sessions").select("minutes,created_at,activity").gte("created_at", sinceIso),
-        supabase.from("quiz_attempts").select("topic,correct,created_at,flashcard_id").gte("created_at", sinceIso),
+        supabase.from("study_sessions").select("minutes,created_at,activity").eq("user_id", userId).gte("created_at", sinceIso),
+        supabase.from("quiz_attempts").select("topic,correct,created_at,flashcard_id").eq("user_id", userId).gte("created_at", sinceIso),
       ]);
       setSessions((s ?? []) as Session[]);
       setAttempts((a ?? []) as Attempt[]);

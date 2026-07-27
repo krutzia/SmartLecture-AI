@@ -48,7 +48,7 @@ const LectureViewer = () => {
   useEffect(() => {
     if (!id) return;
     const load = async () => {
-      const { data } = await supabase.from("lectures").select("id,title,status,source_type,error_message").eq("id", id).maybeSingle();
+      const { data } = await supabase.from("lectures").select("id,title,status,source_type,error_message").eq("id", id).eq("user_id", getDeviceId()).maybeSingle();
       setLecture(data);
       setLoading(false);
       // Record this lecture as a recent visit for the Cmd+K palette.

@@ -30,11 +30,12 @@ const Dashboard = () => {
 
   useEffect(() => {
     let mounted = true;
+    if (!user) return;
     const load = async () => {
-      const { data: lecs } = await supabase.from("lectures").select("id,title,status,source_type,created_at").order("created_at", { ascending: false }).limit(6);
-      const { count: totalCount } = await supabase.from("lectures").select("*", { count: "exact", head: true });
-      const { count: readyCount } = await supabase.from("lectures").select("*", { count: "exact", head: true }).eq("status", "done");
-      const { count: flashCount } = await supabase.from("flashcards").select("*", { count: "exact", head: true });
+      const { data: lecs } = await supabase.from("lectures").select("id,title,status,source_type,created_at").eq("user_id", user.id).order("created_at", { ascending: false }).limit(6);
+      const { count: totalCount } = await supabase.from("lectures").select("*", { count: "exact", head: true }).eq("user_id", user.id);
+      const { count: readyCount } = await supabase.from("lectures").select("*", { count: "exact", head: true }).eq("user_id", user.id).eq("status", "done");
+      const { count: flashCount } = await supabase.from("flashcards").select("*", { count: "exact", head: true }).eq("user_id", user.id);
       if (!mounted) return;
       setLectures(lecs ?? []);
       setStats({ total: totalCount ?? 0, ready: readyCount ?? 0, flashcards: flashCount ?? 0 });
@@ -48,7 +49,7 @@ const Dashboard = () => {
       .subscribe();
 
     return () => { mounted = false; supabase.removeChannel(channel); };
-  }, []);
+  }, [user]);
 
   return (
     <div className="container max-w-6xl py-8">
