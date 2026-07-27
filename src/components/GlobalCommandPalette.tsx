@@ -83,9 +83,9 @@ export const GlobalCommandPalette = () => {
     let cancelled = false;
     (async () => {
       const [{ data: l }, { data: c }, { data: f }] = await Promise.all([
-        supabase.from("lectures").select("id,title").order("created_at", { ascending: false }).limit(200),
-        supabase.from("concepts").select("id,term,lecture_id,definition").limit(500),
-        supabase.from("flashcards").select("id,question,lecture_id").limit(500),
+        supabase.from("lectures").select("id,title").eq("user_id", user.id).order("created_at", { ascending: false }).limit(200),
+        supabase.from("concepts").select("id,term,lecture_id,definition").eq("user_id", user.id).limit(500),
+        supabase.from("flashcards").select("id,question,lecture_id").eq("user_id", user.id).limit(500),
       ]);
       if (cancelled) return;
       setLectures((l ?? []) as Lecture[]);

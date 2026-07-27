@@ -37,6 +37,7 @@ const Review = () => {
       const { data } = await supabase
         .from("flashcards")
         .select("id,question,answer,ease_factor,interval_days,repetitions,due_date,lecture_id")
+        .eq("user_id", getDeviceId())
         .lte("due_date", nowIso)
         .order("due_date", { ascending: true });
       const due = (data ?? []) as DueCard[];
@@ -44,7 +45,7 @@ const Review = () => {
       setStats((s) => ({ ...s, total: due.length }));
       const ids = Array.from(new Set(due.map((d) => d.lecture_id)));
       if (ids.length > 0) {
-        const { data: lecs } = await supabase.from("lectures").select("id,title").in("id", ids);
+        const { data: lecs } = await supabase.from("lectures").select("id,title").eq("user_id", getDeviceId()).in("id", ids);
         setLectures(new Map((lecs ?? []).map((l: LectureLite) => [l.id, l.title])));
       }
       setLoading(false);

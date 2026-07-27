@@ -28,15 +28,16 @@ const Library = () => {
   const [pinnedIds, setPinnedIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
+    if (!user) return;
     const load = async () => {
-      const { data } = await supabase.from("lectures").select("id,title,status,source_type,created_at,file_path").order("created_at", { ascending: false });
+      const { data } = await supabase.from("lectures").select("id,title,status,source_type,created_at,file_path").eq("user_id", user!.id).order("created_at", { ascending: false });
       setLectures(data ?? []);
       setLoading(false);
     };
     load();
     const ch = supabase.channel("library-lectures").on("postgres_changes", { event: "*", schema: "public", table: "lectures" }, load).subscribe();
     return () => { supabase.removeChannel(ch); };
-  }, []);
+  }, [user]);
 
   // Refresh pinned set from localStorage on focus / when user changes
   useEffect(() => {

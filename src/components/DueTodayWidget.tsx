@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { getDeviceId } from "@/lib/deviceId";
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Layers, ArrowRight, Sparkles } from "lucide-react";
@@ -21,6 +22,7 @@ export const DueTodayWidget = () => {
       const { data: due } = await supabase
         .from("flashcards")
         .select("lecture_id,due_date")
+        .eq("user_id", getDeviceId())
         .lte("due_date", nowIso);
       const rows = (due ?? []) as DueRow[];
       setTotalDue(rows.length);
@@ -33,7 +35,7 @@ export const DueTodayWidget = () => {
         setLoading(false);
         return;
       }
-      const { data: lecs } = await supabase.from("lectures").select("id,title").in("id", ids);
+      const { data: lecs } = await supabase.from("lectures").select("id,title").eq("user_id", getDeviceId()).in("id", ids);
       const lecMap = new Map((lecs ?? []).map((l: LectureRow) => [l.id, l.title]));
       const merged = ids
         .map((id) => ({ id, title: lecMap.get(id) ?? "Untitled", count: counts.get(id) ?? 0 }))

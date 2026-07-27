@@ -3,13 +3,14 @@ import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
-import { LogOut, Search } from "lucide-react";
+import { Search } from "lucide-react";
 import { GlobalCommandPalette } from "@/components/GlobalCommandPalette";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { SignOutButton } from "@/components/SignOutButton";
 import { useIsMobile } from "@/hooks/use-mobile";
 
 export const AppLayout = () => {
-  const { user, signOut } = useAuth();
+  const { user } = useAuth();
   const isMobile = useIsMobile();
   const isMac = typeof navigator !== "undefined" && /Mac|iPod|iPhone|iPad/.test(navigator.platform);
 
@@ -53,10 +54,7 @@ export const AppLayout = () => {
               </Button>
               <ThemeToggle />
               <span className="hidden text-sm text-muted-foreground sm:inline">{user?.email}</span>
-              <Button variant="ghost" size="sm" onClick={signOut} className="gap-2">
-                <LogOut className="h-4 w-4" />
-                <span className="hidden sm:inline">Sign out</span>
-              </Button>
+              <SignOutButton labelClassName="hidden sm:inline" />
             </div>
           </header>
           <main className="flex-1 overflow-auto">

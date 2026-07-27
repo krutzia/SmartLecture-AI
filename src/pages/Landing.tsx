@@ -1,4 +1,5 @@
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
 import { motion } from "framer-motion";
 import { Sparkles, Upload, Brain, MessageCircle, Lightbulb, Zap, BookOpen } from "lucide-react";
 import logoAsset from "@/assets/logo-icon.png.asset.json";
@@ -14,6 +15,15 @@ const features = [
 ];
 
 const Landing = () => {
+  const { user, signIn } = useAuth();
+  const navigate = useNavigate();
+
+  // Starting the app always begins a *fresh* anonymous session when signed out.
+  const enterApp = () => {
+    if (!user) signIn();
+    navigate("/dashboard");
+  };
+
   return (
     <div className="min-h-screen bg-gradient-cream">
       {/* Nav */}
@@ -25,7 +35,7 @@ const Landing = () => {
           </span>
         </Link>
         <div className="flex items-center gap-2">
-          <Button asChild size="sm" className="rounded-full"><Link to="/dashboard">Open app</Link></Button>
+          <Button size="sm" className="rounded-full" onClick={enterApp}>Open app</Button>
         </div>
       </nav>
 
@@ -54,8 +64,8 @@ const Landing = () => {
           initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.3 }}
           className="mt-10 flex flex-wrap items-center justify-center gap-3"
         >
-          <Button asChild size="lg" className="h-14 rounded-full px-8 text-base shadow-playful">
-            <Link to="/dashboard">Start learning free →</Link>
+          <Button size="lg" className="h-14 rounded-full px-8 text-base shadow-playful" onClick={enterApp}>
+            Get Started →
           </Button>
           <Button asChild variant="outline" size="lg" className="h-14 rounded-full px-8 text-base">
             <Link to="/upload">Upload a lecture</Link>
@@ -98,9 +108,7 @@ const Landing = () => {
         <div className="overflow-hidden rounded-[2rem] bg-gradient-hero p-12 text-center shadow-playful md:p-16">
           <h2 className="font-display text-3xl font-extrabold text-white md:text-5xl">Ready to study smarter?</h2>
           <p className="mt-4 text-lg text-white/90">Join now — your first lecture is just a drag away.</p>
-          <Button asChild size="lg" className="mt-8 h-14 rounded-full bg-white px-8 text-base text-primary hover:bg-white/90">
-            <Link to="/dashboard">Open the app</Link>
-          </Button>
+          <Button  size="lg" className="mt-8 h-14 rounded-full bg-white px-8 text-base text-primary hover:bg-white/90" onClick={enterApp}>Open the app</Button>
         </div>
       </section>
 
