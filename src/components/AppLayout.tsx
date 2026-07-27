@@ -53,10 +53,7 @@ export const AppLayout = () => {
               </Button>
               <ThemeToggle />
               <span className="hidden text-sm text-muted-foreground sm:inline">{user?.email}</span>
-              <Button variant="ghost" size="sm" onClick={signOut} className="gap-2">
-                <LogOut className="h-4 w-4" />
-                <span className="hidden sm:inline">Sign out</span>
-              </Button>
+              <SignOutButton labelClassName="hidden sm:inline" />
             </div>
           </header>
           <main className="flex-1 overflow-auto">
