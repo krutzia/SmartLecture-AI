@@ -1,14 +1,14 @@
 import { useAuth } from "@/contexts/AuthContext";
-import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { LogOut, User, Mail } from "lucide-react";
+import { User, Fingerprint } from "lucide-react";
+import { SignOutButton } from "@/components/SignOutButton";
 
 const Settings = () => {
-  const { user, signOut } = useAuth();
+  const { user } = useAuth();
   return (
     <div className="container max-w-3xl py-8">
       <h1 className="font-display text-3xl font-extrabold md:text-4xl">Settings</h1>
-      <p className="mt-1 text-muted-foreground">Manage your account.</p>
+      <p className="mt-1 text-muted-foreground">Manage your anonymous study session.</p>
 
       <Card className="mt-8 rounded-3xl border-border/50 p-6 shadow-card">
         <div className="flex items-center gap-4">
@@ -16,19 +16,16 @@ const Settings = () => {
             <User className="h-6 w-6" />
           </div>
           <div className="flex-1">
-            <div className="font-display text-lg font-bold">Your account</div>
+            <div className="font-display text-lg font-bold">Anonymous session</div>
             <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
-              <Mail className="h-3.5 w-3.5" />
-              {user?.email}
+              <Fingerprint className="h-3.5 w-3.5" />
+              <span className="font-mono text-xs">{user?.id}</span>
             </div>
           </div>
         </div>
 
         <div className="mt-6 border-t border-border pt-6">
-          <Button variant="outline" onClick={signOut} className="rounded-full">
-            <LogOut className="mr-2 h-4 w-4" />
-            Sign out
-          </Button>
+          <SignOutButton variant="outline" className="rounded-full" />
         </div>
       </Card>
     </div>

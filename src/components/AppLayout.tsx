@@ -10,7 +10,7 @@ import { SignOutButton } from "@/components/SignOutButton";
 import { useIsMobile } from "@/hooks/use-mobile";
 
 export const AppLayout = () => {
-  const { user, signOut } = useAuth();
+  const { user } = useAuth();
   const isMobile = useIsMobile();
   const isMac = typeof navigator !== "undefined" && /Mac|iPod|iPhone|iPad/.test(navigator.platform);
 
