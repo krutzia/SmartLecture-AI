@@ -1,5 +1,5 @@
-import type { VercelRequest, VercelResponse } from "./lib/gemini.ts";
-import { getGemini, cleanAndParseJson, jsonError, readBody } from "./lib/gemini.ts";
+import type { VercelRequest, VercelResponse } from "./lib/ai.ts";
+import { getAI, DEFAULT_MODEL, cleanAndParseJson, extractArray, jsonError, readBody } from "./lib/ai.ts";
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   res.setHeader("Access-Control-Allow-Origin", "*");
@@ -23,26 +23,33 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(200).json({ clusters: [] });
     }
 
-    const model = getGemini({ jsonMode: true });
+    const ai = getAI();
     const conceptText = conceptList
       .map((c: any, i: number) => `${i + 1}. [${c.id}] "${c.term}" - ${(c.definition || "").slice(0, 150)}`)
       .join("\n");
 
-    const result = await model.generateContent(`Group these lecture concepts into meaningful clusters.
+    const prompt = `Group these lecture concepts into meaningful clusters.
 
 CONCEPTS:
 ${conceptText}
 
-Return ONLY valid JSON as an array of clusters:
-[
-  { "name": "Cluster Name", "conceptIds": ["id1", "id2"] }
-]
-Group related concepts together. Create 3-6 clusters with descriptive names.`);
+Return ONLY valid JSON as an object with key "clusters" containing an array:
+{
+  "clusters": [
+    { "name": "Cluster Name", "conceptIds": ["id1", "id2"] }
+  ]
+}
+Group related concepts together. Create 3-6 clusters with descriptive names.`;
+
+    const result = await ai.chat.completions.create({
+      model: DEFAULT_MODEL,
+      messages: [{ role: "user", content: prompt }],
+      response_format: { type: "json_object" },
+    });
 
     let clusters: { name: string; conceptIds: string[] }[];
     try {
-      clusters = cleanAndParseJson(result.response.text());
-      if (!Array.isArray(clusters)) clusters = [];
+      clusters = extractArray(cleanAndParseJson(result.choices[0]?.message?.content || ""));
     } catch {
       clusters = [];
     }
@@ -51,7 +58,7 @@ Group related concepts together. Create 3-6 clusters with descriptive names.`);
   } catch (e: any) {
     console.error("cluster-concepts error:", e);
     const msg = e?.message ?? String(e);
-    const isRateLimit = msg.includes("429") || msg.includes("Quota") || msg.includes("RESOURCE_EXHAUSTED") || msg.includes("Too Many Requests");
-    return jsonError(res, isRateLimit ? 429 : 500, isRateLimit ? "Gemini API rate limit or quota reached. Please wait a minute and try again." : msg);
+    const isRateLimit = msg.includes("429") || msg.includes("rate_limit") || msg.includes("Quota") || msg.includes("RESOURCE_EXHAUSTED") || msg.includes("Too Many Requests");
+    return jsonError(res, isRateLimit ? 429 : 500, isRateLimit ? "OpenRouter API rate limit reached. Please wait a minute and try again." : msg);
   }
 }

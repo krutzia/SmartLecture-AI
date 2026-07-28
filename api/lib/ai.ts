@@ -1,17 +1,20 @@
-import { GoogleGenerativeAI, type GenerativeModel } from "@google/generative-ai";
+import OpenAI from "openai";
 
-const MODEL = "gemini-2.0-flash";
+export const DEFAULT_MODEL = "deepseek/deepseek-chat";
 
-export function getGemini(opts?: { systemInstruction?: string; jsonMode?: boolean }): GenerativeModel {
-  const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey) throw new Error("GEMINI_API_KEY is not set in environment variables");
-  const genAI = new GoogleGenerativeAI(apiKey);
-  return genAI.getGenerativeModel({
-    model: MODEL,
-    systemInstruction: opts?.systemInstruction,
-    generationConfig: opts?.jsonMode ? { responseMimeType: "application/json" } : undefined,
+export function getAI(): OpenAI {
+  const apiKey = process.env.OPENROUTER_API_KEY;
+  if (!apiKey) {
+    throw new Error("OPENROUTER_API_KEY is not set in environment variables");
+  }
+  return new OpenAI({
+    apiKey,
+    baseURL: "https://openrouter.ai/api/v1",
   });
 }
+
+// Alias for backwards compatibility
+export const getGroq = getAI;
 
 export function cleanAndParseJson<T = any>(text: string): T {
   let cleaned = text.trim();
@@ -29,6 +32,16 @@ export function cleanAndParseJson<T = any>(text: string): T {
     }
     throw new Error(`Failed to parse JSON from response: ${text.slice(0, 100)}`);
   }
+}
+
+export function extractArray<T = any>(parsed: any): T[] {
+  if (Array.isArray(parsed)) return parsed;
+  if (parsed && typeof parsed === "object") {
+    for (const key of Object.keys(parsed)) {
+      if (Array.isArray(parsed[key])) return parsed[key];
+    }
+  }
+  return [];
 }
 
 export function splitIntoSlides(text: string): string[] {

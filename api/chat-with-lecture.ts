@@ -1,5 +1,5 @@
-import type { VercelRequest, VercelResponse } from "./lib/gemini.ts";
-import { getGemini, splitIntoSlides, buildChatPrompt, jsonError, readBody, type ChatMessage } from "./lib/gemini.ts";
+import type { VercelRequest, VercelResponse } from "./lib/ai.ts";
+import { getAI, DEFAULT_MODEL, splitIntoSlides, buildChatPrompt, jsonError, readBody, type ChatMessage } from "./lib/ai.ts";
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   res.setHeader("Access-Control-Allow-Origin", "*");
@@ -34,56 +34,38 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const transcriptText = transcript || "";
     const systemPrompt = buildChatPrompt(transcriptText, messages as ChatMessage[]);
 
-    console.log("=== API CHAT WITH LECTURE ===");
+    console.log("=== API CHAT WITH LECTURE (OPENROUTER/DEEPSEEK) ===");
     console.log(`Transcript Length: ${transcriptText.length} characters`);
-    console.log(`First 500 characters sent to Gemini:\n${transcriptText.slice(0, 500)}`);
-    console.log(`System Prompt sent to Gemini:\n${systemPrompt}`);
+    console.log(`First 500 characters sent to OpenRouter:\n${transcriptText.slice(0, 500)}`);
+    console.log(`System Prompt sent to OpenRouter:\n${systemPrompt}`);
     console.log(`Last User Message: ${messages[messages.length - 1]?.content}`);
-    console.log("=============================");
+    console.log("====================================================");
 
-    const model = getGemini({ systemInstruction: systemPrompt });
+    const ai = getAI();
 
-    const rawHistory = (messages as ChatMessage[]).slice(0, -1);
-    const formattedHistory: Array<{ role: "user" | "model"; parts: Array<{ text: string }> }> = [];
+    const aiMessages: Array<{ role: "system" | "user" | "assistant"; content: string }> = [
+      { role: "system", content: systemPrompt },
+    ];
 
-    for (const m of rawHistory) {
+    for (const m of messages as ChatMessage[]) {
       if (!m.content || !m.content.trim()) continue;
-      const role: "user" | "model" = m.role === "assistant" ? "model" : "user";
-
-      if (formattedHistory.length === 0) {
-        if (role === "user") {
-          formattedHistory.push({ role, parts: [{ text: m.content }] });
-        }
-      } else {
-        const last = formattedHistory[formattedHistory.length - 1];
-        if (last.role === role) {
-          last.parts[0].text += "\n\n" + m.content;
-        } else {
-          formattedHistory.push({ role, parts: [{ text: m.content }] });
-        }
-      }
+      const role = m.role === "assistant" ? "assistant" : "user";
+      aiMessages.push({ role, content: m.content });
     }
-
-    if (formattedHistory.length > 0 && formattedHistory[formattedHistory.length - 1].role === "user") {
-      formattedHistory.pop();
-    }
-
-    const lastUserMsg = messages[messages.length - 1];
-    if (!lastUserMsg || lastUserMsg.role !== "user") {
-      return jsonError(res, 400, "Last message must be from user");
-    }
-
-    const chat = model.startChat({ history: formattedHistory });
 
     res.setHeader("Content-Type", "text/event-stream");
     res.setHeader("Cache-Control", "no-cache");
     res.setHeader("Connection", "keep-alive");
 
-    const result = await chat.sendMessageStream(lastUserMsg.content);
+    const stream = await ai.chat.completions.create({
+      model: DEFAULT_MODEL,
+      messages: aiMessages,
+      stream: true,
+    });
 
     let accumulatedResponse = "";
-    for await (const chunk of result.stream) {
-      const text = chunk.text();
+    for await (const chunk of stream) {
+      const text = chunk.choices[0]?.delta?.content || "";
       if (text) {
         accumulatedResponse += text;
         const sseData = JSON.stringify({ choices: [{ delta: { content: text } }] });
@@ -100,10 +82,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   } catch (e: any) {
     console.error("chat-with-lecture error:", e);
     const msg = e?.message ?? String(e);
-    const isRateLimit = msg.includes("429") || msg.includes("Quota") || msg.includes("RESOURCE_EXHAUSTED") || msg.includes("Too Many Requests");
+    const isRateLimit = msg.includes("429") || msg.includes("rate_limit") || msg.includes("Quota") || msg.includes("RESOURCE_EXHAUSTED") || msg.includes("Too Many Requests");
     const status = isRateLimit ? 429 : 500;
     const userMsg = isRateLimit
-      ? "Gemini API rate limit or free quota reached. Please wait a minute before sending another message."
+      ? "OpenRouter API rate limit reached. Please wait a minute before sending another message."
       : msg;
     if (!res.headersSent) {
       jsonError(res, status, userMsg);

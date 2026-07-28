@@ -1,34 +1,38 @@
 import { describe, it, expect, vi } from "vitest";
-import { splitIntoSlides, buildChatPrompt, cleanAndParseJson } from "../../api/lib/gemini.ts";
+import { splitIntoSlides, buildChatPrompt, cleanAndParseJson } from "../../api/lib/ai.ts";
 import healthHandler from "../../api/health.ts";
 import chatHandler from "../../api/chat-with-lecture.ts";
 
-// Mock @google/generative-ai
-vi.mock("@google/generative-ai", () => {
+// Mock openai SDK for OpenRouter
+vi.mock("openai", () => {
   return {
-    GoogleGenerativeAI: class {
-      getGenerativeModel() {
-        return {
-          generateContent: async () => ({
-            response: {
-              text: () => "OK",
-            },
-          }),
-          startChat: () => ({
-            sendMessageStream: async () => ({
-              stream: (async function* () {
-                yield { text: () => "Hello! " };
-                yield { text: () => "This is a response." };
-              })(),
-            }),
-          }),
-        };
-      }
+    default: class OpenAI {
+      chat = {
+        completions: {
+          create: async (params: any) => {
+            if (params.stream) {
+              return (async function* () {
+                yield { choices: [{ delta: { content: "Hello! " } }] };
+                yield { choices: [{ delta: { content: "This is a response." } }] };
+              })();
+            }
+            return {
+              choices: [
+                {
+                  message: {
+                    content: "OK",
+                  },
+                },
+              ],
+            };
+          },
+        },
+      };
     },
   };
 });
 
-describe("Gemini API Utilities", () => {
+describe("OpenRouter AI Utilities", () => {
   it("splitIntoSlides splits text into paragraphs or blocks", () => {
     const text = "Slide 1 text content here.\n\nSlide 2 text content here.\n\nSlide 3 text content here.";
     const slides = splitIntoSlides(text);
@@ -88,7 +92,7 @@ describe("API Handlers", () => {
   }
 
   it("healthHandler returns ok status", async () => {
-    process.env.GEMINI_API_KEY = "AIzaSyTestApiKeyForTesting12345";
+    process.env.OPENROUTER_API_KEY = "sk-or-v1-TestApiKeyForTesting12345";
     const req: any = { method: "GET", body: {} };
     const res = createMockRes();
 
@@ -116,7 +120,7 @@ describe("API Handlers", () => {
   });
 
   it("chatHandler streams SSE response for chat messages", async () => {
-    process.env.GEMINI_API_KEY = "AIzaSyTestApiKeyForTesting12345";
+    process.env.OPENROUTER_API_KEY = "sk-or-v1-TestApiKeyForTesting12345";
     const req: any = {
       method: "POST",
       body: {

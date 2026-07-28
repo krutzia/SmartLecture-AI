@@ -1,27 +1,31 @@
-import type { VercelRequest, VercelResponse } from "./lib/gemini.ts";
-import { getGemini, jsonError } from "./lib/gemini.ts";
+import type { VercelRequest, VercelResponse } from "./lib/ai.ts";
+import { getAI, DEFAULT_MODEL, jsonError } from "./lib/ai.ts";
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  const apiKey = process.env.GEMINI_API_KEY;
+  const apiKey = process.env.OPENROUTER_API_KEY;
   if (!apiKey) {
-    return jsonError(res, 500, "GEMINI_API_KEY is not set in environment variables");
+    return jsonError(res, 500, "OPENROUTER_API_KEY is not set in environment variables");
   }
   if (apiKey.length < 10) {
-    return jsonError(res, 500, "GEMINI_API_KEY appears invalid (too short). Get a valid key from https://aistudio.google.com/apikey");
+    return jsonError(res, 500, "OPENROUTER_API_KEY appears invalid (too short). Get a valid key from https://openrouter.ai/keys");
   }
-  if (!apiKey.startsWith("AIza")) {
-    return jsonError(res, 500, `GEMINI_API_KEY has wrong format (starts with "${apiKey.slice(0, 4)}..."). It should start with "AIzaSy". Get a valid key from https://aistudio.google.com/apikey`);
+  if (!apiKey.startsWith("sk-or-")) {
+    return jsonError(res, 500, `OPENROUTER_API_KEY has wrong format (starts with "${apiKey.slice(0, 6)}..."). It should start with "sk-or-". Get a valid key from https://openrouter.ai/keys`);
   }
 
   try {
-    const model = getGemini();
-    await model.generateContent("Reply with 'OK'");
+    const ai = getAI();
+    await ai.chat.completions.create({
+      model: DEFAULT_MODEL,
+      messages: [{ role: "user", content: "Reply with 'OK'" }],
+      max_tokens: 10,
+    });
     return res.status(200).json({
       ok: true,
-      keyPrefix: apiKey.slice(0, 8) + "...",
-      message: "API key is valid and Gemini API calls are working successfully.",
+      keyPrefix: apiKey.slice(0, 12) + "...",
+      message: "API key is valid and OpenRouter (DeepSeek) API calls are working successfully.",
     });
   } catch (e: any) {
-    return jsonError(res, 500, `Gemini API test failed: ${e?.message ?? e}`);
+    return jsonError(res, 500, `OpenRouter API test failed: ${e?.message ?? e}`);
   }
 }

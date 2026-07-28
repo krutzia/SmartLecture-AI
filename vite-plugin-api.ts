@@ -34,7 +34,7 @@ function loadEnv() {
       }
     }
   } catch {
-    // .env not found — handlers will throw if GEMINI_API_KEY is missing
+    // .env not found — handlers will throw if OPENROUTER_API_KEY is missing
   }
 }
 loadEnv();

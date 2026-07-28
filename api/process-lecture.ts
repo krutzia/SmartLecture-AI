@@ -1,5 +1,5 @@
-import type { VercelRequest, VercelResponse } from "./lib/gemini.ts";
-import { getGemini, cleanAndParseJson, jsonError, readBody } from "./lib/gemini.ts";
+import type { VercelRequest, VercelResponse } from "./lib/ai.ts";
+import { getAI, DEFAULT_MODEL, cleanAndParseJson, extractArray, jsonError, readBody } from "./lib/ai.ts";
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   res.setHeader("Access-Control-Allow-Origin", "*");
@@ -20,12 +20,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const text = transcript || "";
     const lectureTitle = title || "Untitled Lecture";
 
-    console.log("=== API PROCESS LECTURE ===");
+    console.log("=== API PROCESS LECTURE (OPENROUTER/DEEPSEEK) ===");
     console.log(`Transcript Length: ${text.length} characters`);
-    console.log(`First 500 characters sent to Gemini:\n${text.slice(0, 500)}`);
-    console.log("============================");
+    console.log(`First 500 characters sent to OpenRouter:\n${text.slice(0, 500)}`);
+    console.log("==================================================");
 
-    const model = getGemini({ jsonMode: true });
+    const ai = getAI();
 
     const summaryPrompt = `You are a lecture summarizer. Generate a study summary for the lecture titled "${lectureTitle}".
 
@@ -45,10 +45,12 @@ Return ONLY valid JSON with this exact structure:
 LECTURE TEXT:
 ${text.slice(0, 30000)}
 
-Return ONLY valid JSON as an array of concepts:
-[
-  { "term": "Concept Name", "definition": "Clear definition from the lecture", "kind": "concept|definition|keyword", "cluster": "Suggested cluster name" }
-]
+Return ONLY valid JSON as an object with key "concepts" containing an array of concepts:
+{
+  "concepts": [
+    { "term": "Concept Name", "definition": "Clear definition from the lecture", "kind": "concept|definition|keyword", "cluster": "Suggested cluster name" }
+  ]
+}
 Aim for 10-20 concepts. Kinds should be: "definition" for terms defined with "X is a/an Y", "concept" for major ideas, "keyword" for important terms.`;
 
     const flashcardsPrompt = `Create flashcards from this lecture titled "${lectureTitle}".
@@ -56,10 +58,12 @@ Aim for 10-20 concepts. Kinds should be: "definition" for terms defined with "X 
 LECTURE TEXT:
 ${text.slice(0, 30000)}
 
-Return ONLY valid JSON as an array:
-[
-  { "question": "Clear, specific question", "answer": "Concise but complete answer from the lecture" }
-]
+Return ONLY valid JSON as an object with key "flashcards" containing an array:
+{
+  "flashcards": [
+    { "question": "Clear, specific question", "answer": "Concise but complete answer from the lecture" }
+  ]
+}
 Create 10-15 flashcards covering the most important material.`;
 
     const quizPrompt = `Generate quiz questions for this lecture titled "${lectureTitle}".
@@ -67,35 +71,53 @@ Create 10-15 flashcards covering the most important material.`;
 LECTURE TEXT:
 ${text.slice(0, 30000)}
 
-Return ONLY valid JSON as an array of 8 questions:
-[
-  { "type": "mcq", "question": "...", "topic": "${lectureTitle}", "options": ["correct answer", "wrong1", "wrong2", "wrong3"], "correct_index": 0, "explanation": "Why the correct answer is right" },
-  { "type": "tf", "question": "True/false statement", "topic": "${lectureTitle}", "answer": true, "explanation": "..." },
-  { "type": "fib", "question": "Fill in the blank: _____ is ...", "topic": "${lectureTitle}", "answer": "the term", "explanation": "..." }
-]
+Return ONLY valid JSON as an object with key "questions" containing an array of 8 questions:
+{
+  "questions": [
+    { "type": "mcq", "question": "...", "topic": "${lectureTitle}", "options": ["correct answer", "wrong1", "wrong2", "wrong3"], "correct_index": 0, "explanation": "Why the correct answer is right" },
+    { "type": "tf", "question": "True/false statement", "topic": "${lectureTitle}", "answer": true, "explanation": "..." },
+    { "type": "fib", "question": "Fill in the blank: _____ is ...", "topic": "${lectureTitle}", "answer": "the term", "explanation": "..." }
+  ]
+}
 Mix MCQ, true/false, and fill-in-the-blank types. Make questions that test real understanding.`;
 
-    console.log("--- Summary Prompt sent to Gemini ---");
+    console.log("--- Summary Prompt sent to OpenRouter ---");
     console.log(summaryPrompt);
-    console.log("--- Concepts Prompt sent to Gemini ---");
+    console.log("--- Concepts Prompt sent to OpenRouter ---");
     console.log(conceptsPrompt);
-    console.log("--- Flashcards Prompt sent to Gemini ---");
+    console.log("--- Flashcards Prompt sent to OpenRouter ---");
     console.log(flashcardsPrompt);
-    console.log("--- Quiz Prompt sent to Gemini ---");
+    console.log("--- Quiz Prompt sent to OpenRouter ---");
     console.log(quizPrompt);
-    console.log("-------------------------------------");
+    console.log("-----------------------------------------");
 
-    const [summaryResult, conceptsResult, flashcardsResult, quizResult] = await Promise.all([
-      model.generateContent(summaryPrompt),
-      model.generateContent(conceptsPrompt),
-      model.generateContent(flashcardsPrompt),
-      model.generateContent(quizPrompt),
+    const [summaryRes, conceptsRes, flashcardsRes, quizRes] = await Promise.all([
+      ai.chat.completions.create({
+        model: DEFAULT_MODEL,
+        messages: [{ role: "user", content: summaryPrompt }],
+        response_format: { type: "json_object" },
+      }),
+      ai.chat.completions.create({
+        model: DEFAULT_MODEL,
+        messages: [{ role: "user", content: conceptsPrompt }],
+        response_format: { type: "json_object" },
+      }),
+      ai.chat.completions.create({
+        model: DEFAULT_MODEL,
+        messages: [{ role: "user", content: flashcardsPrompt }],
+        response_format: { type: "json_object" },
+      }),
+      ai.chat.completions.create({
+        model: DEFAULT_MODEL,
+        messages: [{ role: "user", content: quizPrompt }],
+        response_format: { type: "json_object" },
+      }),
     ]);
 
-    const summaryText = summaryResult.response.text();
-    const conceptsText = conceptsResult.response.text();
-    const flashcardsText = flashcardsResult.response.text();
-    const quizText = quizResult.response.text();
+    const summaryText = summaryRes.choices[0]?.message?.content || "";
+    const conceptsText = conceptsRes.choices[0]?.message?.content || "";
+    const flashcardsText = flashcardsRes.choices[0]?.message?.content || "";
+    const quizText = quizRes.choices[0]?.message?.content || "";
 
     console.log("=== Responses Received ===");
     console.log(`Summary Response:\n${summaryText}`);
@@ -105,20 +127,20 @@ Mix MCQ, true/false, and fill-in-the-blank types. Make questions that test real 
     console.log("==========================");
 
     const summary = cleanAndParseJson(summaryText);
-    const concepts = cleanAndParseJson(conceptsText);
-    const flashcards = cleanAndParseJson(flashcardsText);
-    const questions = cleanAndParseJson(quizText);
+    const concepts = extractArray(cleanAndParseJson(conceptsText));
+    const flashcards = extractArray(cleanAndParseJson(flashcardsText));
+    const questions = extractArray(cleanAndParseJson(quizText));
 
     return res.status(200).json({
       summary,
-      concepts: Array.isArray(concepts) ? concepts : [],
-      flashcards: Array.isArray(flashcards) ? flashcards : [],
-      quiz: { questions: Array.isArray(questions) ? questions : [] },
+      concepts,
+      flashcards,
+      quiz: { questions },
     });
   } catch (e: any) {
     console.error("process-lecture error:", e);
     const msg = e?.message ?? String(e);
-    const isRateLimit = msg.includes("429") || msg.includes("Quota") || msg.includes("RESOURCE_EXHAUSTED") || msg.includes("Too Many Requests");
-    return jsonError(res, isRateLimit ? 429 : 500, isRateLimit ? "Gemini API rate limit or quota reached. Please wait a minute and try again." : msg);
+    const isRateLimit = msg.includes("429") || msg.includes("rate_limit") || msg.includes("Quota") || msg.includes("RESOURCE_EXHAUSTED") || msg.includes("Too Many Requests");
+    return jsonError(res, isRateLimit ? 429 : 500, isRateLimit ? "OpenRouter API rate limit reached. Please wait a minute and try again." : msg);
   }
 }

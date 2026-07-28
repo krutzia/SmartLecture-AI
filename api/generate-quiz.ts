@@ -1,5 +1,5 @@
-import type { VercelRequest, VercelResponse } from "./lib/gemini.ts";
-import { getGemini, cleanAndParseJson, jsonError, readBody } from "./lib/gemini.ts";
+import type { VercelRequest, VercelResponse } from "./lib/ai.ts";
+import { getAI, DEFAULT_MODEL, cleanAndParseJson, extractArray, jsonError, readBody } from "./lib/ai.ts";
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   res.setHeader("Access-Control-Allow-Origin", "*");
@@ -21,31 +21,37 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const n = Math.min(Math.max(numQuestions || 8, 1), 20);
     const topic = focusTopic ? ` focusing on "${focusTopic}"` : "";
 
-    console.log("=== API GENERATE QUIZ ===");
+    console.log("=== API GENERATE QUIZ (OPENROUTER/DEEPSEEK) ===");
     console.log(`Transcript Length: ${text.length} characters`);
-    console.log(`First 500 characters sent to Gemini:\n${text.slice(0, 500)}`);
-    console.log("=========================");
+    console.log(`First 500 characters sent to OpenRouter:\n${text.slice(0, 500)}`);
+    console.log("================================================");
 
-    const model = getGemini({ jsonMode: true });
+    const ai = getAI();
     const quizPrompt = `Generate ${n} quiz questions${topic} from this lecture.
 
 LECTURE TEXT:
 ${text.slice(0, 30000)}
 
-Return ONLY valid JSON as an array of ${n} questions:
-[
-  { "type": "mcq", "question": "...", "topic": "${focusTopic || "General"}", "options": ["correct", "wrong1", "wrong2", "wrong3"], "correct_index": 0, "explanation": "Why correct" },
-  { "type": "tf", "question": "...", "topic": "${focusTopic || "General"}", "answer": true, "explanation": "..." },
-  { "type": "fib", "question": "Fill in the blank: _____ is ...", "topic": "${focusTopic || "General"}", "answer": "term", "explanation": "..." }
-]
+Return ONLY valid JSON as an object with key "questions" containing an array of ${n} questions:
+{
+  "questions": [
+    { "type": "mcq", "question": "...", "topic": "${focusTopic || "General"}", "options": ["correct", "wrong1", "wrong2", "wrong3"], "correct_index": 0, "explanation": "Why correct" },
+    { "type": "tf", "question": "...", "topic": "${focusTopic || "General"}", "answer": true, "explanation": "..." },
+    { "type": "fib", "question": "Fill in the blank: _____ is ...", "topic": "${focusTopic || "General"}", "answer": "term", "explanation": "..." }
+  ]
+}
 Mix question types. Ensure answers are accurate to the lecture content.`;
 
-    console.log("--- Quiz Prompt sent to Gemini ---");
+    console.log("--- Quiz Prompt sent to OpenRouter ---");
     console.log(quizPrompt);
-    console.log("---------------------------------");
+    console.log("--------------------------------------");
 
-    const result = await model.generateContent(quizPrompt);
-    const resultText = result.response.text();
+    const result = await ai.chat.completions.create({
+      model: DEFAULT_MODEL,
+      messages: [{ role: "user", content: quizPrompt }],
+      response_format: { type: "json_object" },
+    });
+    const resultText = result.choices[0]?.message?.content || "";
 
     console.log("=== Quiz Response Received ===");
     console.log(resultText);
@@ -53,8 +59,7 @@ Mix question types. Ensure answers are accurate to the lecture content.`;
 
     let questions: any[];
     try {
-      questions = cleanAndParseJson(resultText);
-      if (!Array.isArray(questions)) questions = [];
+      questions = extractArray(cleanAndParseJson(resultText));
     } catch {
       questions = [];
     }
@@ -65,7 +70,7 @@ Mix question types. Ensure answers are accurate to the lecture content.`;
   } catch (e: any) {
     console.error("generate-quiz error:", e);
     const msg = e?.message ?? String(e);
-    const isRateLimit = msg.includes("429") || msg.includes("Quota") || msg.includes("RESOURCE_EXHAUSTED") || msg.includes("Too Many Requests");
-    return jsonError(res, isRateLimit ? 429 : 500, isRateLimit ? "Gemini API rate limit or quota reached. Please wait a minute and try again." : msg);
+    const isRateLimit = msg.includes("429") || msg.includes("rate_limit") || msg.includes("Quota") || msg.includes("RESOURCE_EXHAUSTED") || msg.includes("Too Many Requests");
+    return jsonError(res, isRateLimit ? 429 : 500, isRateLimit ? "OpenRouter API rate limit reached. Please wait a minute and try again." : msg);
   }
 }

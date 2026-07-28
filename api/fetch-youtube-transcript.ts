@@ -1,5 +1,5 @@
-import type { VercelRequest, VercelResponse } from "./lib/gemini.ts";
-import { jsonError, readBody } from "./lib/gemini.ts";
+import type { VercelRequest, VercelResponse } from "./lib/ai.ts";
+import { jsonError, readBody } from "./lib/ai.ts";
 import { YoutubeTranscript } from "youtube-transcript";
 
 function extractVideoId(url: string): string | null {
