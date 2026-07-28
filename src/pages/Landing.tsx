@@ -36,7 +36,7 @@ const Landing = () => {
       {/* Nav */}
       <nav className="container flex items-center justify-between py-6">
         <Link to="/" className="flex items-center gap-2">
-          <img src="/logo.svg" alt="SmartLecture AI" className="h-10 w-10 object-contain" />
+          <img src="/logo.png" alt="SmartLecture AI" className="h-10 w-10 object-contain" />
           <span className="font-display text-xl font-extrabold">
             Smart<span className="text-primary">Lecture</span> AI
           </span>

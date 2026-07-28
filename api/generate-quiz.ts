@@ -1,5 +1,5 @@
-import type { VercelRequest, VercelResponse } from "./lib/gemini";
-import { getGemini, jsonError, readBody } from "./lib/gemini";
+import type { VercelRequest, VercelResponse } from "./lib/gemini.ts";
+import { getGemini, cleanAndParseJson, jsonError, readBody } from "./lib/gemini.ts";
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   res.setHeader("Access-Control-Allow-Origin", "*");
@@ -20,14 +20,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const text = transcript || "";
     const n = Math.min(Math.max(numQuestions || 8, 1), 20);
     const topic = focusTopic ? ` focusing on "${focusTopic}"` : "";
-    const model = getGemini();
+    const model = getGemini({ jsonMode: true });
 
     const result = await model.generateContent(`Generate ${n} quiz questions${topic} from this lecture.
 
 LECTURE TEXT:
 ${text.slice(0, 30000)}
 
-Return ONLY valid JSON (no markdown, no code fences) as an array of ${n} questions:
+Return ONLY valid JSON as an array of ${n} questions:
 [
   { "type": "mcq", "question": "...", "topic": "${focusTopic || "General"}", "options": ["correct", "wrong1", "wrong2", "wrong3"], "correct_index": 0, "explanation": "Why correct" },
   { "type": "tf", "question": "...", "topic": "${focusTopic || "General"}", "answer": true, "explanation": "..." },
@@ -37,13 +37,10 @@ Mix question types. Ensure answers are accurate to the lecture content.`);
 
     let questions: any[];
     try {
-      let cleaned = result.response.text().trim();
-      if (cleaned.startsWith("```")) cleaned = cleaned.replace(/^```(?:json)?\n?/, "").replace(/\n?```$/, "");
-      questions = JSON.parse(cleaned);
-      if (!Array.isArray(questions)) throw new Error("not array");
+      questions = cleanAndParseJson(result.response.text());
+      if (!Array.isArray(questions)) questions = [];
     } catch {
-      const match = result.response.text().match(/\[[\s\S]*\]/);
-      questions = match ? JSON.parse(match[0]) : [];
+      questions = [];
     }
 
     const quizId = crypto.randomUUID();
@@ -51,6 +48,8 @@ Mix question types. Ensure answers are accurate to the lecture content.`);
     return res.status(200).json({ quizId, questions });
   } catch (e: any) {
     console.error("generate-quiz error:", e);
-    return jsonError(res, 500, e?.message ?? "Internal server error");
+    const msg = e?.message ?? String(e);
+    const isRateLimit = msg.includes("429") || msg.includes("Quota") || msg.includes("RESOURCE_EXHAUSTED") || msg.includes("Too Many Requests");
+    return jsonError(res, isRateLimit ? 429 : 500, isRateLimit ? "Gemini API rate limit or quota reached. Please wait a minute and try again." : msg);
   }
 }

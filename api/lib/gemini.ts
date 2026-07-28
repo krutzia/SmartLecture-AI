@@ -2,11 +2,33 @@ import { GoogleGenerativeAI, type GenerativeModel } from "@google/generative-ai"
 
 const MODEL = "gemini-2.0-flash";
 
-export function getGemini(): GenerativeModel {
+export function getGemini(opts?: { systemInstruction?: string; jsonMode?: boolean }): GenerativeModel {
   const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey) throw new Error("GEMINI_API_KEY is not set");
+  if (!apiKey) throw new Error("GEMINI_API_KEY is not set in environment variables");
   const genAI = new GoogleGenerativeAI(apiKey);
-  return genAI.getGenerativeModel({ model: MODEL });
+  return genAI.getGenerativeModel({
+    model: MODEL,
+    systemInstruction: opts?.systemInstruction,
+    generationConfig: opts?.jsonMode ? { responseMimeType: "application/json" } : undefined,
+  });
+}
+
+export function cleanAndParseJson<T = any>(text: string): T {
+  let cleaned = text.trim();
+  cleaned = cleaned.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/i, "").trim();
+  try {
+    return JSON.parse(cleaned);
+  } catch {
+    const objMatch = cleaned.match(/\{[\s\S]*\}/);
+    const arrMatch = cleaned.match(/\[[\s\S]*\]/);
+    if (objMatch) {
+      try { return JSON.parse(objMatch[0]); } catch {}
+    }
+    if (arrMatch) {
+      try { return JSON.parse(arrMatch[0]); } catch {}
+    }
+    throw new Error(`Failed to parse JSON from response: ${text.slice(0, 100)}`);
+  }
 }
 
 export function splitIntoSlides(text: string): string[] {
@@ -54,6 +76,7 @@ export type VercelResponse = {
   write(chunk: any): boolean;
   end(data?: any): void;
   writeHead(code: number, headers?: Record<string, string>): VercelResponse;
+  headersSent?: boolean;
 };
 
 export function jsonError(res: VercelResponse, status: number, message: string) {

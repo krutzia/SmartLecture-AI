@@ -1,5 +1,5 @@
-import type { VercelRequest, VercelResponse } from "./lib/gemini";
-import { getGemini, jsonError, readBody } from "./lib/gemini";
+import type { VercelRequest, VercelResponse } from "./lib/gemini.ts";
+import { getGemini, cleanAndParseJson, jsonError, readBody } from "./lib/gemini.ts";
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   res.setHeader("Access-Control-Allow-Origin", "*");
@@ -23,7 +23,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(200).json({ clusters: [] });
     }
 
-    const model = getGemini();
+    const model = getGemini({ jsonMode: true });
     const conceptText = conceptList
       .map((c: any, i: number) => `${i + 1}. [${c.id}] "${c.term}" - ${(c.definition || "").slice(0, 150)}`)
       .join("\n");
@@ -33,7 +33,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 CONCEPTS:
 ${conceptText}
 
-Return ONLY valid JSON (no markdown, no code fences) as an array of clusters:
+Return ONLY valid JSON as an array of clusters:
 [
   { "name": "Cluster Name", "conceptIds": ["id1", "id2"] }
 ]
@@ -41,18 +41,17 @@ Group related concepts together. Create 3-6 clusters with descriptive names.`);
 
     let clusters: { name: string; conceptIds: string[] }[];
     try {
-      let cleaned = result.response.text().trim();
-      if (cleaned.startsWith("```")) cleaned = cleaned.replace(/^```(?:json)?\n?/, "").replace(/\n?```$/, "");
-      clusters = JSON.parse(cleaned);
-      if (!Array.isArray(clusters)) throw new Error("not array");
+      clusters = cleanAndParseJson(result.response.text());
+      if (!Array.isArray(clusters)) clusters = [];
     } catch {
-      const match = result.response.text().match(/\[[\s\S]*\]/);
-      clusters = match ? JSON.parse(match[0]) : [];
+      clusters = [];
     }
 
     return res.status(200).json({ clusters });
   } catch (e: any) {
     console.error("cluster-concepts error:", e);
-    return jsonError(res, 500, e?.message ?? "Internal server error");
+    const msg = e?.message ?? String(e);
+    const isRateLimit = msg.includes("429") || msg.includes("Quota") || msg.includes("RESOURCE_EXHAUSTED") || msg.includes("Too Many Requests");
+    return jsonError(res, isRateLimit ? 429 : 500, isRateLimit ? "Gemini API rate limit or quota reached. Please wait a minute and try again." : msg);
   }
 }

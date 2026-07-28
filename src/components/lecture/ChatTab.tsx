@@ -248,7 +248,8 @@ export const ChatTab = ({ lectureId, lectureTitle }: { lectureId: string; lectur
       if (!resp.ok || !resp.body) {
         if (resp.status === 429) throw new Error("Rate limited — try again in a moment.");
         if (resp.status === 402) throw new Error("AI credits exhausted. Add credits in Settings → Workspace → Usage.");
-        throw new Error("Chat failed");
+        const errObj = await resp.json().catch(() => null);
+        throw new Error(errObj?.error ?? "Chat request failed");
       }
 
       const reader = resp.body.getReader();

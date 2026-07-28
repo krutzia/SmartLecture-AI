@@ -1,5 +1,5 @@
-import type { VercelRequest, VercelResponse } from "./lib/gemini";
-import { jsonError } from "./lib/gemini";
+import type { VercelRequest, VercelResponse } from "./lib/gemini.ts";
+import { getGemini, jsonError } from "./lib/gemini.ts";
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   const apiKey = process.env.GEMINI_API_KEY;
@@ -13,9 +13,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return jsonError(res, 500, `GEMINI_API_KEY has wrong format (starts with "${apiKey.slice(0, 4)}..."). It should start with "AIzaSy". Get a valid key from https://aistudio.google.com/apikey`);
   }
 
-  return res.status(200).json({
-    ok: true,
-    keyPrefix: apiKey.slice(0, 8) + "...",
-    message: "API key looks valid. Gemini API calls should work.",
-  });
+  try {
+    const model = getGemini();
+    await model.generateContent("Reply with 'OK'");
+    return res.status(200).json({
+      ok: true,
+      keyPrefix: apiKey.slice(0, 8) + "...",
+      message: "API key is valid and Gemini API calls are working successfully.",
+    });
+  } catch (e: any) {
+    return jsonError(res, 500, `Gemini API test failed: ${e?.message ?? e}`);
+  }
 }

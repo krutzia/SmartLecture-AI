@@ -1,5 +1,5 @@
-import type { VercelRequest, VercelResponse } from "./lib/gemini";
-import { getGemini, jsonError, readBody } from "./lib/gemini";
+import type { VercelRequest, VercelResponse } from "./lib/gemini.ts";
+import { getGemini, cleanAndParseJson, jsonError, readBody } from "./lib/gemini.ts";
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   res.setHeader("Access-Control-Allow-Origin", "*");
@@ -19,7 +19,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const text = transcript || "";
     const lectureTitle = title || "Untitled Lecture";
-    const model = getGemini();
+    const model = getGemini({ jsonMode: true });
 
     const [summaryResult, conceptsResult, flashcardsResult, quizResult] = await Promise.all([
       model.generateContent(`You are a lecture summarizer. Generate a study summary for the lecture titled "${lectureTitle}".
@@ -27,7 +27,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 LECTURE TEXT:
 ${text.slice(0, 30000)}
 
-Return ONLY valid JSON (no markdown, no code fences) with this exact structure:
+Return ONLY valid JSON with this exact structure:
 {
   "quick": "2-3 sentence summary",
   "detailed": "Detailed markdown summary with ## headers and paragraphs",
@@ -40,7 +40,7 @@ Return ONLY valid JSON (no markdown, no code fences) with this exact structure:
 LECTURE TEXT:
 ${text.slice(0, 30000)}
 
-Return ONLY valid JSON (no markdown, no code fences) as an array of concepts:
+Return ONLY valid JSON as an array of concepts:
 [
   { "term": "Concept Name", "definition": "Clear definition from the lecture", "kind": "concept|definition|keyword", "cluster": "Suggested cluster name" }
 ]
@@ -51,7 +51,7 @@ Aim for 10-20 concepts. Kinds should be: "definition" for terms defined with "X 
 LECTURE TEXT:
 ${text.slice(0, 30000)}
 
-Return ONLY valid JSON (no markdown, no code fences) as an array:
+Return ONLY valid JSON as an array:
 [
   { "question": "Clear, specific question", "answer": "Concise but complete answer from the lecture" }
 ]
@@ -62,7 +62,7 @@ Create 10-15 flashcards covering the most important material.`),
 LECTURE TEXT:
 ${text.slice(0, 30000)}
 
-Return ONLY valid JSON (no markdown, no code fences) as an array of 8 questions:
+Return ONLY valid JSON as an array of 8 questions:
 [
   { "type": "mcq", "question": "...", "topic": "${lectureTitle}", "options": ["correct answer", "wrong1", "wrong2", "wrong3"], "correct_index": 0, "explanation": "Why the correct answer is right" },
   { "type": "tf", "question": "True/false statement", "topic": "${lectureTitle}", "answer": true, "explanation": "..." },
@@ -71,20 +71,10 @@ Return ONLY valid JSON (no markdown, no code fences) as an array of 8 questions:
 Mix MCQ, true/false, and fill-in-the-blank types. Make questions that test real understanding.`),
     ]);
 
-    const parseJson = (text: string): any => {
-      let cleaned = text.trim();
-      if (cleaned.startsWith("```")) cleaned = cleaned.replace(/^```(?:json)?\n?/, "").replace(/\n?```$/, "");
-      try { return JSON.parse(cleaned); } catch {
-        const match = cleaned.match(/\{[\s\S]*\}/) || cleaned.match(/\[[\s\S]*\]/);
-        if (match) return JSON.parse(match[0]);
-        throw new Error("Failed to parse JSON from Gemini response");
-      }
-    };
-
-    const summary = parseJson(summaryResult.response.text());
-    const concepts = parseJson(conceptsResult.response.text());
-    const flashcards = parseJson(flashcardsResult.response.text());
-    const questions = parseJson(quizResult.response.text());
+    const summary = cleanAndParseJson(summaryResult.response.text());
+    const concepts = cleanAndParseJson(conceptsResult.response.text());
+    const flashcards = cleanAndParseJson(flashcardsResult.response.text());
+    const questions = cleanAndParseJson(quizResult.response.text());
 
     return res.status(200).json({
       summary,
@@ -94,6 +84,8 @@ Mix MCQ, true/false, and fill-in-the-blank types. Make questions that test real 
     });
   } catch (e: any) {
     console.error("process-lecture error:", e);
-    return jsonError(res, 500, e?.message ?? "Internal server error");
+    const msg = e?.message ?? String(e);
+    const isRateLimit = msg.includes("429") || msg.includes("Quota") || msg.includes("RESOURCE_EXHAUSTED") || msg.includes("Too Many Requests");
+    return jsonError(res, isRateLimit ? 429 : 500, isRateLimit ? "Gemini API rate limit or quota reached. Please wait a minute and try again." : msg);
   }
 }

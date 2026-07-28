@@ -319,9 +319,41 @@ export async function processLectureLocally(lectureId: string, userId: string): 
   });
 
   await updateStatus(lectureId, "transcribing");
-  await delay(500);
+  await delay(300);
 
-  const summary = generateSummary(transcriptText, lecture.title ?? "Untitled Lecture");
+  let apiSummary: any = null;
+  let apiConcepts: any[] = [];
+  let apiFlashcards: any[] = [];
+  let apiQuestions: any[] = [];
+
+  try {
+    const resp = await fetch("/api/process-lecture", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        lectureId,
+        userId,
+        transcript: transcriptText,
+        title: lecture.title ?? "Untitled Lecture",
+      }),
+    });
+    if (resp.ok) {
+      const data = await resp.json();
+      if (data.summary) apiSummary = data.summary;
+      if (Array.isArray(data.concepts) && data.concepts.length > 0) apiConcepts = data.concepts;
+      if (Array.isArray(data.flashcards) && data.flashcards.length > 0) apiFlashcards = data.flashcards;
+      if (data.quiz && Array.isArray(data.quiz.questions) && data.quiz.questions.length > 0) {
+        apiQuestions = data.quiz.questions;
+      }
+    }
+  } catch (e) {
+    console.warn("API process-lecture failed, falling back to local processing:", e);
+  }
+
+  await updateStatus(lectureId, "summarizing");
+  await delay(300);
+
+  const summary = apiSummary ?? generateSummary(transcriptText, lecture.title ?? "Untitled Lecture");
   await supabase.from("summaries").insert({
     lecture_id: lectureId,
     user_id: userId,
@@ -331,23 +363,23 @@ export async function processLectureLocally(lectureId: string, userId: string): 
     takeaways: summary.takeaways,
   });
 
-  await updateStatus(lectureId, "summarizing");
-  await delay(400);
-
-  const concepts = generateConceptsFromText(transcriptText, lecture.title ?? "Untitled Lecture");
+  const concepts = apiConcepts.length > 0
+    ? apiConcepts
+    : generateConceptsFromText(transcriptText, lecture.title ?? "Untitled Lecture");
   for (const c of concepts) {
     await supabase.from("concepts").insert({
       lecture_id: lectureId,
       user_id: userId,
       term: c.term,
       definition: c.definition,
-      kind: c.kind,
-      cluster: c.cluster,
+      kind: c.kind ?? "concept",
+      cluster: c.cluster ?? "General",
     });
   }
-  await delay(300);
 
-  const flashcards = generateFlashcards(transcriptText);
+  const flashcards = apiFlashcards.length > 0
+    ? apiFlashcards
+    : generateFlashcards(transcriptText);
   const now = new Date().toISOString();
   for (const fc of flashcards) {
     await supabase.from("flashcards").insert({
@@ -363,17 +395,17 @@ export async function processLectureLocally(lectureId: string, userId: string): 
       last_reviewed_at: null,
     });
   }
-  await delay(300);
 
-  const quizQuestions = generateQuizQuestions(transcriptText, lecture.title ?? "Untitled Lecture", 8);
+  const quizQuestions = apiQuestions.length > 0
+    ? apiQuestions
+    : generateQuizQuestions(transcriptText, lecture.title ?? "Untitled Lecture", 8);
   await supabase.from("quizzes").insert({
     lecture_id: lectureId,
     user_id: userId,
-    title: `Quiz \u00b7 ${new Date().toLocaleDateString()}`,
+    title: `Quiz · ${new Date().toLocaleDateString()}`,
     questions: quizQuestions,
     question_count: quizQuestions.length,
   });
-  await delay(200);
 
   await updateStatus(lectureId, "done");
 }

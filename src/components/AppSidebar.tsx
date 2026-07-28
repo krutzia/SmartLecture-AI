@@ -25,7 +25,7 @@ export function AppSidebar() {
 
       <SidebarHeader className="px-4 py-5">
         <NavLink to="/dashboard" onClick={closeOnMobile} className="flex items-center gap-2">
-          <img src="/logo.svg" alt="SmartLecture AI" className="h-9 w-9 object-contain" />
+          <img src="/logo.png" alt="SmartLecture AI" className="h-9 w-9 object-contain" />
           {!collapsed && (
             <div className="font-display text-lg font-extrabold leading-none">
               Smart<span className="text-primary">Lecture</span> AI

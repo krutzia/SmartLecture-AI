@@ -1,5 +1,5 @@
-import type { VercelRequest, VercelResponse } from "./lib/gemini";
-import { getGemini, splitIntoSlides, buildChatPrompt, jsonError, readBody, type ChatMessage } from "./lib/gemini";
+import type { VercelRequest, VercelResponse } from "./lib/gemini.ts";
+import { getGemini, splitIntoSlides, buildChatPrompt, jsonError, readBody, type ChatMessage } from "./lib/gemini.ts";
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   res.setHeader("Access-Control-Allow-Origin", "*");
@@ -31,30 +31,41 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return jsonError(res, 400, "messages array is required");
     }
 
-    const model = getGemini();
     const transcriptText = transcript || "";
     const systemPrompt = buildChatPrompt(transcriptText, messages as ChatMessage[]);
+    const model = getGemini({ systemInstruction: systemPrompt });
 
-    const history = (messages as ChatMessage[]).slice(0, -1).map((m) => ({
-      role: m.role === "assistant" ? "model" : "user",
-      parts: [{ text: m.content }],
-    }));
+    const rawHistory = (messages as ChatMessage[]).slice(0, -1);
+    const formattedHistory: Array<{ role: "user" | "model"; parts: Array<{ text: string }> }> = [];
+
+    for (const m of rawHistory) {
+      if (!m.content || !m.content.trim()) continue;
+      const role: "user" | "model" = m.role === "assistant" ? "model" : "user";
+
+      if (formattedHistory.length === 0) {
+        if (role === "user") {
+          formattedHistory.push({ role, parts: [{ text: m.content }] });
+        }
+      } else {
+        const last = formattedHistory[formattedHistory.length - 1];
+        if (last.role === role) {
+          last.parts[0].text += "\n\n" + m.content;
+        } else {
+          formattedHistory.push({ role, parts: [{ text: m.content }] });
+        }
+      }
+    }
+
+    if (formattedHistory.length > 0 && formattedHistory[formattedHistory.length - 1].role === "user") {
+      formattedHistory.pop();
+    }
 
     const lastUserMsg = messages[messages.length - 1];
     if (!lastUserMsg || lastUserMsg.role !== "user") {
       return jsonError(res, 400, "Last message must be from user");
     }
 
-    const chat = model.startChat({
-      history: [
-        { role: "user", parts: [{ text: systemPrompt }] },
-        { role: "model", parts: [{ text: "I understand. I'm ready to help the student study this lecture. I'll answer based only on the lecture content and use [[slide:N]] markers when referencing specific sections." }] },
-        ...history.map((h) => ({
-          role: h.role as "user" | "model",
-          parts: h.parts,
-        })),
-      ],
-    });
+    const chat = model.startChat({ history: formattedHistory });
 
     res.setHeader("Content-Type", "text/event-stream");
     res.setHeader("Cache-Control", "no-cache");
@@ -74,8 +85,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     res.end();
   } catch (e: any) {
     console.error("chat-with-lecture error:", e);
+    const msg = e?.message ?? String(e);
+    const isRateLimit = msg.includes("429") || msg.includes("Quota") || msg.includes("RESOURCE_EXHAUSTED") || msg.includes("Too Many Requests");
+    const status = isRateLimit ? 429 : 500;
+    const userMsg = isRateLimit
+      ? "Gemini API rate limit or free quota reached. Please wait a minute before sending another message."
+      : msg;
     if (!res.headersSent) {
-      jsonError(res, 500, e?.message ?? "Internal server error");
+      jsonError(res, status, userMsg);
     } else {
       res.end();
     }
