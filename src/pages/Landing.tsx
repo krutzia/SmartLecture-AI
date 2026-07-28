@@ -4,6 +4,7 @@ import { motion } from "framer-motion";
 import { Sparkles, Upload, Brain, MessageCircle, Lightbulb, Zap, BookOpen } from "lucide-react";
 import logoAsset from "@/assets/logo-icon.png.asset.json";
 import { Button } from "@/components/ui/button";
+import { useProfile } from "@/lib/profile";
 
 const features = [
   { icon: Upload, title: "Upload anything", desc: "Audio, video, PDF or text — we handle it all.", color: "bg-primary-soft text-primary" },
@@ -14,15 +15,22 @@ const features = [
   { icon: Zap, title: "Lightning fast", desc: "Process a whole lecture in under a minute.", color: "bg-primary-soft text-primary" },
 ];
 
+
 const Landing = () => {
   const { user, signIn } = useAuth();
+  const { profile } = useProfile();
   const navigate = useNavigate();
 
   // Starting the app always begins a *fresh* anonymous session when signed out.
   const enterApp = () => {
-    if (!user) signIn();
-    navigate("/dashboard");
+    if (!user) {
+      signIn();
+      navigate("/onboarding");
+      return;
+    }
+    navigate(profile.onboarded ? "/dashboard" : "/onboarding");
   };
+
 
   return (
     <div className="min-h-screen bg-gradient-cream">

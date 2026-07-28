@@ -7,6 +7,7 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { AppLayout } from "@/components/AppLayout";
 import Landing from "./pages/Landing";
+import Onboarding from "./pages/Onboarding";
 
 import Dashboard from "./pages/Dashboard";
 import Upload from "./pages/Upload";
@@ -28,7 +29,12 @@ const App = () => (
         <AuthProvider>
           <Routes>
             <Route path="/" element={<Landing />} />
-            
+
+            <Route
+              path="/onboarding"
+              element={<ProtectedRoute><Onboarding /></ProtectedRoute>}
+            />
+
             <Route element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
               <Route path="/dashboard" element={<Dashboard />} />
               <Route path="/upload" element={<Upload />} />

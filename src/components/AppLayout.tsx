@@ -1,4 +1,4 @@
-import { Outlet } from "react-router-dom";
+import { Navigate, Outlet, useLocation } from "react-router-dom";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
 import { useAuth } from "@/contexts/AuthContext";
@@ -8,12 +8,13 @@ import { GlobalCommandPalette } from "@/components/GlobalCommandPalette";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { SignOutButton } from "@/components/SignOutButton";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { useProfile } from "@/lib/profile";
+import { displayName, initialsOf, useProfile } from "@/lib/profile";
 
 export const AppLayout = () => {
   const { user } = useAuth();
   const { profile } = useProfile();
   const isMobile = useIsMobile();
+  const location = useLocation();
   const isMac = typeof navigator !== "undefined" && /Mac|iPod|iPhone|iPad/.test(navigator.platform);
 
   const openPalette = () => {
@@ -21,6 +22,14 @@ export const AppLayout = () => {
     const ev = new KeyboardEvent("keydown", { key: "k", metaKey: isMac, ctrlKey: !isMac, bubbles: true });
     window.dispatchEvent(ev);
   };
+
+  // First run: send new sessions through the setup step.
+  if (!profile.onboarded) {
+    return <Navigate to="/onboarding" replace state={{ from: location.pathname }} />;
+  }
+
+  const greetingName = displayName(profile);
+
 
   return (
     // On small screens the sidebar is an off-canvas drawer that starts closed,
@@ -55,9 +64,23 @@ export const AppLayout = () => {
                 <Search className="h-4 w-4" />
               </Button>
               <ThemeToggle />
-              <span className="hidden text-sm text-muted-foreground sm:inline">
-                {profile.name.trim() || profile.email.trim() || user?.email}
-              </span>
+              <div className="flex items-center gap-2">
+                <div className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-full bg-gradient-hero text-[11px] font-extrabold text-white">
+                  {profile.avatar ? (
+                    <img
+                      src={profile.avatar}
+                      alt={profile.name ? `${profile.name}'s avatar` : "Your avatar"}
+                      className="h-full w-full object-cover"
+                    />
+                  ) : (
+                    initialsOf(profile.name) || "?"
+                  )}
+                </div>
+                <span className="hidden text-sm text-muted-foreground sm:inline">
+                  {greetingName ? `Hey, ${greetingName}` : profile.email.trim() || user?.email}
+                </span>
+              </div>
+
               <SignOutButton labelClassName="hidden sm:inline" />
             </div>
           </header>

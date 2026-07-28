@@ -1,43 +1,54 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Card } from "@/components/ui/card";
-import { User, Fingerprint, Save, Check } from "lucide-react";
+import { Fingerprint, Save, Check } from "lucide-react";
 import { SignOutButton } from "@/components/SignOutButton";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useProfile, Profile } from "@/lib/profile";
+import { AvatarUploader } from "@/components/AvatarUploader";
+import {
+  clampGoal, formatName, INSTITUTION_MAX, NAME_MAX, sanitizeName,
+  useProfile, validateEmail, validateName,
+} from "@/lib/profile";
 import { toast } from "sonner";
 
 const Settings = () => {
   const { user } = useAuth();
   const { profile, update } = useProfile();
-  const [form, setForm] = useState<Profile>(profile);
+
+  const [name, setName] = useState(profile.name);
+  const [email, setEmail] = useState(profile.email);
+  const [institution, setInstitution] = useState(profile.institution);
+  const [goal, setGoal] = useState<number | string>(profile.dailyGoalMinutes);
+  const [errors, setErrors] = useState<{ name?: string; email?: string }>({});
   const [saved, setSaved] = useState(false);
 
-  useEffect(() => setForm(profile), [profile]);
-
-  const set = <K extends keyof Profile>(key: K, value: Profile[K]) =>
-    setForm((f) => ({ ...f, [key]: value }));
+  // Keep the form in sync if the profile changes elsewhere (other tab/session reset).
+  useEffect(() => {
+    setName(profile.name);
+    setEmail(profile.email);
+    setInstitution(profile.institution);
+    setGoal(profile.dailyGoalMinutes);
+  }, [profile.name, profile.email, profile.institution, profile.dailyGoalMinutes]);
 
   const onSave = (e: React.FormEvent) => {
     e.preventDefault();
-    const name = form.name.trim().slice(0, 60);
-    const email = form.email.trim().slice(0, 255);
-    if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      toast.error("Please enter a valid email address");
-      return;
-    }
-    const goal = Math.min(600, Math.max(5, Number(form.dailyGoalMinutes) || 30));
-    update({ name, email, institution: form.institution.trim().slice(0, 100), dailyGoalMinutes: goal });
+    const nameError = name.trim() ? validateName(name) : null; // name optional here
+    const emailError = validateEmail(email);
+    setErrors({ name: nameError ?? undefined, email: emailError ?? undefined });
+    if (nameError || emailError) return;
+
+    update({
+      name: formatName(name),
+      email: email.trim(),
+      institution: institution.trim().slice(0, INSTITUTION_MAX),
+      dailyGoalMinutes: clampGoal(goal),
+    });
     setSaved(true);
     toast.success("Profile updated");
     setTimeout(() => setSaved(false), 2000);
   };
-
-  const initials = form.name.trim()
-    ? form.name.trim().split(/\s+/).map((p) => p[0]).slice(0, 2).join("").toUpperCase()
-    : null;
 
   return (
     <div className="container max-w-3xl py-8">
@@ -45,19 +56,16 @@ const Settings = () => {
       <p className="mt-1 text-muted-foreground">Manage your profile and study session.</p>
 
       <Card className="mt-8 rounded-3xl border-border/50 p-6 shadow-card">
-        <div className="flex items-center gap-4">
-          <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-hero font-display text-lg font-extrabold text-white">
-            {initials ?? <User className="h-6 w-6" />}
-          </div>
-          <div className="flex-1">
-            <div className="font-display text-lg font-bold">
-              {profile.name.trim() || "Anonymous session"}
-            </div>
-            <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
-              <Fingerprint className="h-3.5 w-3.5" />
-              <span className="font-mono text-xs">{user?.id}</span>
-            </div>
-          </div>
+        {/* Avatar saves instantly so the header updates live */}
+        <AvatarUploader
+          value={profile.avatar}
+          name={name || profile.name}
+          onChange={(avatar) => { update({ avatar }); toast.success(avatar ? "Photo updated" : "Photo removed"); }}
+        />
+
+        <div className="mt-4 flex items-center gap-1.5 text-sm text-muted-foreground">
+          <Fingerprint className="h-3.5 w-3.5" />
+          <span className="font-mono text-xs">{user?.id}</span>
         </div>
 
         <form onSubmit={onSave} className="mt-6 grid gap-4 border-t border-border pt-6 sm:grid-cols-2">
@@ -65,31 +73,34 @@ const Settings = () => {
             <Label htmlFor="name">Display name</Label>
             <Input
               id="name"
-              value={form.name}
-              maxLength={60}
+              value={name}
+              maxLength={NAME_MAX}
               placeholder="e.g. Aditi Sharma"
-              onChange={(e) => set("name", e.target.value)}
+              aria-invalid={!!errors.name}
+              onChange={(e) => { setName(sanitizeName(e.target.value)); setErrors((x) => ({ ...x, name: undefined })); }}
             />
+            {errors.name && <p className="text-xs text-destructive">{errors.name}</p>}
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="email">Email (optional)</Label>
             <Input
               id="email"
               type="email"
-              value={form.email}
-              maxLength={255}
+              value={email}
               placeholder="you@university.edu"
-              onChange={(e) => set("email", e.target.value)}
+              aria-invalid={!!errors.email}
+              onChange={(e) => { setEmail(e.target.value); setErrors((x) => ({ ...x, email: undefined })); }}
             />
+            {errors.email && <p className="text-xs text-destructive">{errors.email}</p>}
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="institution">School / University</Label>
             <Input
               id="institution"
-              value={form.institution}
-              maxLength={100}
+              value={institution}
+              maxLength={INSTITUTION_MAX}
               placeholder="e.g. IIT Delhi"
-              onChange={(e) => set("institution", e.target.value)}
+              onChange={(e) => setInstitution(e.target.value)}
             />
           </div>
           <div className="space-y-1.5">
@@ -99,8 +110,8 @@ const Settings = () => {
               type="number"
               min={5}
               max={600}
-              value={form.dailyGoalMinutes}
-              onChange={(e) => set("dailyGoalMinutes", Number(e.target.value))}
+              value={goal}
+              onChange={(e) => setGoal(e.target.value)}
             />
           </div>
 
