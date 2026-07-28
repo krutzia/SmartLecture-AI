@@ -1,5 +1,5 @@
-import type { VercelRequest, VercelResponse } from "./lib/ai.ts";
-import { getAI, DEFAULT_MODEL, jsonError } from "./lib/ai.ts";
+import type { VercelRequest, VercelResponse } from "./lib/ai";
+import { getAI, DEFAULT_MODEL, jsonError } from "./lib/ai";
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   const apiKey = process.env.OPENROUTER_API_KEY;
