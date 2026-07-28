@@ -8,9 +8,11 @@ import { GlobalCommandPalette } from "@/components/GlobalCommandPalette";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { SignOutButton } from "@/components/SignOutButton";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { useProfile } from "@/lib/profile";
 
 export const AppLayout = () => {
   const { user } = useAuth();
+  const { profile } = useProfile();
   const isMobile = useIsMobile();
   const isMac = typeof navigator !== "undefined" && /Mac|iPod|iPhone|iPad/.test(navigator.platform);
 

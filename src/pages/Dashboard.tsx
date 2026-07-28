@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { DueTodayWidget } from "@/components/DueTodayWidget";
+import { displayName, useProfile } from "@/lib/profile";
 
 type Lecture = {
   id: string; title: string; status: string; source_type: string; created_at: string;
@@ -24,6 +25,8 @@ const statusBadge: Record<string, { label: string; cls: string; Icon: any }> = {
 
 const Dashboard = () => {
   const { user } = useAuth();
+  const { profile } = useProfile();
+  const firstName = displayName(profile);
   const [lectures, setLectures] = useState<Lecture[]>([]);
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState({ total: 0, ready: 0, flashcards: 0 });
