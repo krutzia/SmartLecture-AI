@@ -55,7 +55,9 @@ export const AppLayout = () => {
                 <Search className="h-4 w-4" />
               </Button>
               <ThemeToggle />
-              <span className="hidden text-sm text-muted-foreground sm:inline">{user?.email}</span>
+              <span className="hidden text-sm text-muted-foreground sm:inline">
+                {profile.name.trim() || profile.email.trim() || user?.email}
+              </span>
               <SignOutButton labelClassName="hidden sm:inline" />
             </div>
           </header>
