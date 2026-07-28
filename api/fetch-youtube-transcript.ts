@@ -1,5 +1,5 @@
-import type { VercelRequest, VercelResponse } from "./lib/ai";
-import { jsonError, readBody } from "./lib/ai";
+import type { VercelRequest, VercelResponse } from "./lib/ai.js";
+import { jsonError, readBody } from "./lib/ai.js";
 import { YoutubeTranscript } from "youtube-transcript";
 
 export const maxDuration = 60;
