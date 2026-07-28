@@ -44,6 +44,7 @@ const HANDLER_MAP: Record<string, string> = {
   "/process-lecture": "./api/process-lecture.ts",
   "/generate-quiz": "./api/generate-quiz.ts",
   "/cluster-concepts": "./api/cluster-concepts.ts",
+  "/fetch-youtube-transcript": "./api/fetch-youtube-transcript.ts",
   "/health": "./api/health.ts",
 };
 

@@ -33,6 +33,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const transcriptText = transcript || "";
     const systemPrompt = buildChatPrompt(transcriptText, messages as ChatMessage[]);
+
+    console.log("=== API CHAT WITH LECTURE ===");
+    console.log(`Transcript Length: ${transcriptText.length} characters`);
+    console.log(`First 500 characters sent to Gemini:\n${transcriptText.slice(0, 500)}`);
+    console.log(`System Prompt sent to Gemini:\n${systemPrompt}`);
+    console.log(`Last User Message: ${messages[messages.length - 1]?.content}`);
+    console.log("=============================");
+
     const model = getGemini({ systemInstruction: systemPrompt });
 
     const rawHistory = (messages as ChatMessage[]).slice(0, -1);
@@ -73,13 +81,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const result = await chat.sendMessageStream(lastUserMsg.content);
 
+    let accumulatedResponse = "";
     for await (const chunk of result.stream) {
       const text = chunk.text();
       if (text) {
+        accumulatedResponse += text;
         const sseData = JSON.stringify({ choices: [{ delta: { content: text } }] });
         res.write(`data: ${sseData}\n\n`);
       }
     }
+
+    console.log("=== Chat Response Received ===");
+    console.log(accumulatedResponse);
+    console.log("==============================");
 
     res.write("data: [DONE]\n\n");
     res.end();

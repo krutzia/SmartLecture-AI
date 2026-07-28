@@ -20,9 +20,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const text = transcript || "";
     const n = Math.min(Math.max(numQuestions || 8, 1), 20);
     const topic = focusTopic ? ` focusing on "${focusTopic}"` : "";
-    const model = getGemini({ jsonMode: true });
 
-    const result = await model.generateContent(`Generate ${n} quiz questions${topic} from this lecture.
+    console.log("=== API GENERATE QUIZ ===");
+    console.log(`Transcript Length: ${text.length} characters`);
+    console.log(`First 500 characters sent to Gemini:\n${text.slice(0, 500)}`);
+    console.log("=========================");
+
+    const model = getGemini({ jsonMode: true });
+    const quizPrompt = `Generate ${n} quiz questions${topic} from this lecture.
 
 LECTURE TEXT:
 ${text.slice(0, 30000)}
@@ -33,11 +38,22 @@ Return ONLY valid JSON as an array of ${n} questions:
   { "type": "tf", "question": "...", "topic": "${focusTopic || "General"}", "answer": true, "explanation": "..." },
   { "type": "fib", "question": "Fill in the blank: _____ is ...", "topic": "${focusTopic || "General"}", "answer": "term", "explanation": "..." }
 ]
-Mix question types. Ensure answers are accurate to the lecture content.`);
+Mix question types. Ensure answers are accurate to the lecture content.`;
+
+    console.log("--- Quiz Prompt sent to Gemini ---");
+    console.log(quizPrompt);
+    console.log("---------------------------------");
+
+    const result = await model.generateContent(quizPrompt);
+    const resultText = result.response.text();
+
+    console.log("=== Quiz Response Received ===");
+    console.log(resultText);
+    console.log("==============================");
 
     let questions: any[];
     try {
-      questions = cleanAndParseJson(result.response.text());
+      questions = cleanAndParseJson(resultText);
       if (!Array.isArray(questions)) questions = [];
     } catch {
       questions = [];

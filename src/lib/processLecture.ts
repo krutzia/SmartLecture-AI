@@ -22,6 +22,64 @@ function readStoredFile(path: string): string | null {
   }
 }
 
+function readStoredBase64(path: string): string | null {
+  try {
+    const dataUrl = localStorage.getItem(DB_PREFIX + "storage_" + path);
+    if (!dataUrl) return null;
+    const parts = dataUrl.split(",");
+    if (parts.length < 2) return null;
+    return parts[1];
+  } catch {
+    return null;
+  }
+}
+
+async function loadPdfjsFromCDN(): Promise<any> {
+  if (typeof window === "undefined") {
+    throw new Error("PDF.js cannot be loaded in Node environment");
+  }
+  if ((window as any).pdfjsLib) {
+    return (window as any).pdfjsLib;
+  }
+  
+  await new Promise<void>((resolve, reject) => {
+    const script = document.createElement("script");
+    script.src = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js";
+    script.onload = () => resolve();
+    script.onerror = () => reject(new Error("Failed to load PDF.js library"));
+    document.head.appendChild(script);
+  });
+  
+  const pdfjsLib = (window as any).pdfjsLib;
+  if (!pdfjsLib) throw new Error("PDF.js library was loaded but not found on window");
+  
+  pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js";
+  return pdfjsLib;
+}
+
+export async function extractTextFromPdf(base64Data: string): Promise<string> {
+  const pdfjsLib = await loadPdfjsFromCDN();
+  const binaryString = atob(base64Data);
+  const len = binaryString.length;
+  const bytes = new Uint8Array(len);
+  for (let i = 0; i < len; i++) {
+    bytes[i] = binaryString.charCodeAt(i);
+  }
+  
+  const loadingTask = pdfjsLib.getDocument({ data: bytes });
+  const pdf = await loadingTask.promise;
+  let fullText = "";
+  
+  for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+    const page = await pdf.getPage(pageNum);
+    const textContent = await page.getTextContent();
+    const pageText = textContent.items.map((item: any) => item.str).join(" ");
+    fullText += pageText + "\n\n";
+  }
+  
+  return fullText;
+}
+
 function splitSentences(text: string): string[] {
   return text
     .replace(/\n{2,}/g, "\n")
@@ -285,48 +343,78 @@ async function updateStatus(lectureId: string, status: string) {
 }
 
 export async function processLectureLocally(lectureId: string, userId: string): Promise<void> {
-  const { data: lecture } = await supabase
-    .from("lectures")
-    .select("*")
-    .eq("id", lectureId)
-    .maybeSingle();
+  try {
+    const { data: lecture } = await supabase
+      .from("lectures")
+      .select("*")
+      .eq("id", lectureId)
+      .maybeSingle();
 
-  if (!lecture) throw new Error("Lecture not found");
+    if (!lecture) throw new Error("Lecture not found");
 
-  await updateStatus(lectureId, "extracting");
-  await delay(600);
+    await updateStatus(lectureId, "extracting");
+    await delay(300);
 
-  let transcriptText: string;
-  const filePath: string = lecture.file_path ?? "";
+    let transcriptText = "";
+    const filePath: string = lecture.file_path ?? "";
 
-  if (filePath.startsWith("weblink::")) {
-    const url = filePath.replace("weblink::", "");
-    transcriptText = `Lecture imported from: ${url}\n\nThis lecture was imported from a web link. The content covers the main topics presented in the source material.\n\nKey topics discussed include the fundamental principles, core concepts, and practical applications of the subject matter. The lecture follows a structured approach to explain the material, building from basic definitions to more complex ideas.`;
-  } else {
-    const fileContent = readStoredFile(filePath);
-    if (fileContent && fileContent.trim().length > 50) {
+    if (filePath.startsWith("weblink::")) {
+      const url = filePath.replace("weblink::", "");
+
+      // Fetch real transcript from YouTube (runs on Node.js backend — no CORS issues)
+      const ytResp = await fetch("/api/fetch-youtube-transcript", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url }),
+      });
+
+      if (!ytResp.ok) {
+        const errData = await ytResp.json().catch(() => null);
+        const errorMsg = errData?.error ?? `Failed to fetch transcript (status ${ytResp.status})`;
+        throw new Error(errorMsg);
+      }
+
+      const ytData = await ytResp.json();
+      if (!ytData.transcript || ytData.transcript.trim().length === 0) {
+        throw new Error("No transcript content was found for this video. The video may not have captions enabled.");
+      }
+
+      transcriptText = ytData.transcript;
+    } else if (lecture.source_type === "audio" || lecture.source_type === "video") {
+      throw new Error("Audio and video transcription is not supported in the local browser offline environment. Please upload a PDF or text file.");
+    } else if (lecture.source_type === "pdf") {
+      const base64Data = readStoredBase64(filePath);
+      if (!base64Data) {
+        throw new Error("Failed to read PDF file from local storage.");
+      }
+      transcriptText = await extractTextFromPdf(base64Data);
+      if (!transcriptText || transcriptText.trim().length === 0) {
+        throw new Error("No text content could be extracted from the PDF. It might be scanned or image-only.");
+      }
+    } else if (lecture.source_type === "text") {
+      const fileContent = readStoredFile(filePath);
+      if (!fileContent || fileContent.trim().length === 0) {
+        throw new Error("Failed to read text file or the file is empty.");
+      }
       transcriptText = fileContent;
     } else {
-      const title = lecture.title ?? "Untitled Lecture";
-      transcriptText = `Transcript for: ${title}\n\nThis lecture covers the topic of ${title}. The material includes detailed explanations of core concepts, definitions of key terms, and examples illustrating practical applications.\n\nThe lecture begins with an introduction to the fundamental principles, followed by a discussion of the main concepts and their relationships. Key terms are defined and explained in context, with examples provided to reinforce understanding.\n\nThe second part of the lecture explores advanced topics and applications, building on the foundational knowledge established earlier. Real-world examples and case studies are discussed to demonstrate how these concepts apply in practice.\n\nThe lecture concludes with a summary of the key points and a discussion of how the concepts relate to each other and to the broader field of study.`;
+      throw new Error(`Unsupported source type: ${lecture.source_type}`);
     }
-  }
 
-  await supabase.from("transcripts").insert({
-    lecture_id: lectureId,
-    user_id: userId,
-    full_text: transcriptText,
-  });
+    await supabase.from("transcripts").insert({
+      lecture_id: lectureId,
+      user_id: userId,
+      full_text: transcriptText,
+    });
 
-  await updateStatus(lectureId, "transcribing");
-  await delay(300);
+    await updateStatus(lectureId, "transcribing");
+    await delay(300);
 
-  let apiSummary: any = null;
-  let apiConcepts: any[] = [];
-  let apiFlashcards: any[] = [];
-  let apiQuestions: any[] = [];
+    let apiSummary: any = null;
+    let apiConcepts: any[] = [];
+    let apiFlashcards: any[] = [];
+    let apiQuestions: any[] = [];
 
-  try {
     const resp = await fetch("/api/process-lecture", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -337,77 +425,79 @@ export async function processLectureLocally(lectureId: string, userId: string): 
         title: lecture.title ?? "Untitled Lecture",
       }),
     });
-    if (resp.ok) {
-      const data = await resp.json();
-      if (data.summary) apiSummary = data.summary;
-      if (Array.isArray(data.concepts) && data.concepts.length > 0) apiConcepts = data.concepts;
-      if (Array.isArray(data.flashcards) && data.flashcards.length > 0) apiFlashcards = data.flashcards;
-      if (data.quiz && Array.isArray(data.quiz.questions) && data.quiz.questions.length > 0) {
-        apiQuestions = data.quiz.questions;
-      }
+
+    if (!resp.ok) {
+      const errData = await resp.json().catch(() => null);
+      throw new Error(errData?.error ?? `API processing failed with status ${resp.status}`);
     }
-  } catch (e) {
-    console.warn("API process-lecture failed, falling back to local processing:", e);
-  }
 
-  await updateStatus(lectureId, "summarizing");
-  await delay(300);
+    const data = await resp.json();
+    if (data.summary) apiSummary = data.summary;
+    if (Array.isArray(data.concepts) && data.concepts.length > 0) apiConcepts = data.concepts;
+    if (Array.isArray(data.flashcards) && data.flashcards.length > 0) apiFlashcards = data.flashcards;
+    if (data.quiz && Array.isArray(data.quiz.questions) && data.quiz.questions.length > 0) {
+      apiQuestions = data.quiz.questions;
+    }
 
-  const summary = apiSummary ?? generateSummary(transcriptText, lecture.title ?? "Untitled Lecture");
-  await supabase.from("summaries").insert({
-    lecture_id: lectureId,
-    user_id: userId,
-    quick: summary.quick,
-    detailed: summary.detailed,
-    bullets: summary.bullets,
-    takeaways: summary.takeaways,
-  });
+    if (!apiSummary) {
+      throw new Error("API did not return a valid summary.");
+    }
 
-  const concepts = apiConcepts.length > 0
-    ? apiConcepts
-    : generateConceptsFromText(transcriptText, lecture.title ?? "Untitled Lecture");
-  for (const c of concepts) {
-    await supabase.from("concepts").insert({
+    await updateStatus(lectureId, "summarizing");
+    await delay(300);
+
+    await supabase.from("summaries").insert({
       lecture_id: lectureId,
       user_id: userId,
-      term: c.term,
-      definition: c.definition,
-      kind: c.kind ?? "concept",
-      cluster: c.cluster ?? "General",
+      quick: apiSummary.quick,
+      detailed: apiSummary.detailed,
+      bullets: apiSummary.bullets,
+      takeaways: apiSummary.takeaways,
     });
-  }
 
-  const flashcards = apiFlashcards.length > 0
-    ? apiFlashcards
-    : generateFlashcards(transcriptText);
-  const now = new Date().toISOString();
-  for (const fc of flashcards) {
-    await supabase.from("flashcards").insert({
+    for (const c of apiConcepts) {
+      await supabase.from("concepts").insert({
+        lecture_id: lectureId,
+        user_id: userId,
+        term: c.term,
+        definition: c.definition,
+        kind: c.kind ?? "concept",
+        cluster: c.cluster ?? "General",
+      });
+    }
+
+    const now = new Date().toISOString();
+    for (const fc of apiFlashcards) {
+      await supabase.from("flashcards").insert({
+        lecture_id: lectureId,
+        user_id: userId,
+        question: fc.question,
+        answer: fc.answer,
+        known: false,
+        ease_factor: 2.5,
+        interval_days: 0,
+        repetitions: 0,
+        due_date: now,
+        last_reviewed_at: null,
+      });
+    }
+
+    await supabase.from("quizzes").insert({
       lecture_id: lectureId,
       user_id: userId,
-      question: fc.question,
-      answer: fc.answer,
-      known: false,
-      ease_factor: 2.5,
-      interval_days: 0,
-      repetitions: 0,
-      due_date: now,
-      last_reviewed_at: null,
+      title: `Quiz · ${new Date().toLocaleDateString()}`,
+      questions: apiQuestions,
+      question_count: apiQuestions.length,
     });
+
+    await updateStatus(lectureId, "done");
+  } catch (error: any) {
+    console.error("processLectureLocally failed:", error);
+    await supabase.from("lectures").update({
+      status: "error",
+      error_message: error?.message ?? "An unknown error occurred during processing."
+    }).eq("id", lectureId);
   }
-
-  const quizQuestions = apiQuestions.length > 0
-    ? apiQuestions
-    : generateQuizQuestions(transcriptText, lecture.title ?? "Untitled Lecture", 8);
-  await supabase.from("quizzes").insert({
-    lecture_id: lectureId,
-    user_id: userId,
-    title: `Quiz · ${new Date().toLocaleDateString()}`,
-    questions: quizQuestions,
-    question_count: quizQuestions.length,
-  });
-
-  await updateStatus(lectureId, "done");
 }
 
 export async function generateQuizLocally(
