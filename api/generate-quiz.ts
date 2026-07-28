@@ -1,5 +1,5 @@
-import type { VercelRequest, VercelResponse } from "./lib/ai.ts";
-import { getAI, DEFAULT_MODEL, cleanAndParseJson, extractArray, jsonError, readBody } from "./lib/ai.ts";
+import type { VercelRequest, VercelResponse } from "./lib/ai";
+import { getAI, DEFAULT_MODEL, cleanAndParseJson, extractArray, jsonError, readBody } from "./lib/ai";
 
 export const maxDuration = 60;
 export const config = { maxDuration: 60 };
