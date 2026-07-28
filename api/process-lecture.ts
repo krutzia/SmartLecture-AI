@@ -1,5 +1,5 @@
-import type { VercelRequest, VercelResponse } from "./lib/ai";
-import { getAI, DEFAULT_MODEL, cleanAndParseJson, extractArray, jsonError, readBody } from "./lib/ai";
+import type { VercelRequest, VercelResponse } from "./lib/ai.ts";
+import { getAI, DEFAULT_MODEL, cleanAndParseJson, extractArray, jsonError, readBody } from "./lib/ai.ts";
 
 export const maxDuration = 60;
 export const config = { maxDuration: 60 };
@@ -84,17 +84,7 @@ Return ONLY valid JSON as an object with key "questions" containing an array of 
 }
 Mix MCQ, true/false, and fill-in-the-blank types. Make questions that test real understanding.`;
 
-    console.log("--- Summary Prompt sent to OpenRouter ---");
-    console.log(summaryPrompt);
-    console.log("--- Concepts Prompt sent to OpenRouter ---");
-    console.log(conceptsPrompt);
-    console.log("--- Flashcards Prompt sent to OpenRouter ---");
-    console.log(flashcardsPrompt);
-    console.log("--- Quiz Prompt sent to OpenRouter ---");
-    console.log(quizPrompt);
-    console.log("-----------------------------------------");
-
-    const [summaryRes, conceptsRes, flashcardsRes, quizRes] = await Promise.all([
+    const results = await Promise.allSettled([
       ai.chat.completions.create({
         model: DEFAULT_MODEL,
         messages: [{ role: "user", content: summaryPrompt }],
@@ -117,22 +107,46 @@ Mix MCQ, true/false, and fill-in-the-blank types. Make questions that test real 
       }),
     ]);
 
-    const summaryText = summaryRes.choices[0]?.message?.content || "";
-    const conceptsText = conceptsRes.choices[0]?.message?.content || "";
-    const flashcardsText = flashcardsRes.choices[0]?.message?.content || "";
-    const quizText = quizRes.choices[0]?.message?.content || "";
+    const summaryText = results[0].status === "fulfilled" ? results[0].value.choices[0]?.message?.content || "" : "";
+    const conceptsText = results[1].status === "fulfilled" ? results[1].value.choices[0]?.message?.content || "" : "";
+    const flashcardsText = results[2].status === "fulfilled" ? results[2].value.choices[0]?.message?.content || "" : "";
+    const quizText = results[3].status === "fulfilled" ? results[3].value.choices[0]?.message?.content || "" : "";
 
-    console.log("=== Responses Received ===");
-    console.log(`Summary Response:\n${summaryText}`);
-    console.log(`Concepts Response:\n${conceptsText}`);
-    console.log(`Flashcards Response:\n${flashcardsText}`);
-    console.log(`Quiz Response:\n${quizText}`);
-    console.log("==========================");
+    let summary: any = null;
+    try {
+      if (summaryText) summary = cleanAndParseJson(summaryText);
+    } catch (err) {
+      console.error("Failed to parse summary JSON:", err);
+    }
+    if (!summary) {
+      summary = {
+        quick: `Summary of ${lectureTitle}`,
+        detailed: `## ${lectureTitle}\n\n${text.slice(0, 1000)}...`,
+        bullets: ["Key lecture content discussed"],
+        takeaways: [`Understand ${lectureTitle}`],
+      };
+    }
 
-    const summary = cleanAndParseJson(summaryText);
-    const concepts = extractArray(cleanAndParseJson(conceptsText));
-    const flashcards = extractArray(cleanAndParseJson(flashcardsText));
-    const questions = extractArray(cleanAndParseJson(quizText));
+    let concepts: any[] = [];
+    try {
+      if (conceptsText) concepts = extractArray(cleanAndParseJson(conceptsText));
+    } catch (err) {
+      console.error("Failed to parse concepts JSON:", err);
+    }
+
+    let flashcards: any[] = [];
+    try {
+      if (flashcardsText) flashcards = extractArray(cleanAndParseJson(flashcardsText));
+    } catch (err) {
+      console.error("Failed to parse flashcards JSON:", err);
+    }
+
+    let questions: any[] = [];
+    try {
+      if (quizText) questions = extractArray(cleanAndParseJson(quizText));
+    } catch (err) {
+      console.error("Failed to parse quiz JSON:", err);
+    }
 
     return res.status(200).json({
       summary,
