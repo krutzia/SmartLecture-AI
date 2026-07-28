@@ -1,6 +1,9 @@
 import type { VercelRequest, VercelResponse } from "./lib/ai";
 import { getAI, DEFAULT_MODEL, splitIntoSlides, buildChatPrompt, jsonError, readBody, type ChatMessage } from "./lib/ai";
 
+export const maxDuration = 60;
+export const config = { maxDuration: 60 };
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
@@ -54,8 +57,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     res.setHeader("Content-Type", "text/event-stream");
-    res.setHeader("Cache-Control", "no-cache");
+    res.setHeader("Cache-Control", "no-cache, no-transform");
     res.setHeader("Connection", "keep-alive");
+    res.setHeader("X-Accel-Buffering", "no");
 
     const stream = await ai.chat.completions.create({
       model: DEFAULT_MODEL,
@@ -94,3 +98,4 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
   }
 }
+

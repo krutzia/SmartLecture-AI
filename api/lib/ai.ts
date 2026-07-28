@@ -10,6 +10,10 @@ export function getAI(): OpenAI {
   return new OpenAI({
     apiKey,
     baseURL: "https://openrouter.ai/api/v1",
+    defaultHeaders: {
+      "HTTP-Referer": "https://smartlecture.ai",
+      "X-Title": "SmartLecture AI",
+    },
   });
 }
 
@@ -93,19 +97,29 @@ export type VercelResponse = {
 };
 
 export function jsonError(res: VercelResponse, status: number, message: string) {
-  res.status(status).json({ error: message });
+  res.status(status).setHeader("Content-Type", "application/json").json({ error: message });
 }
 
 export function readBody(req: VercelRequest): Promise<any> {
-  if (req.body !== undefined && req.body !== null) return Promise.resolve(req.body);
+  if (req.body !== undefined && req.body !== null && req.body !== "") {
+    if (typeof req.body === "string") {
+      try {
+        return Promise.resolve(JSON.parse(req.body));
+      } catch {
+        return Promise.resolve(req.body);
+      }
+    }
+    return Promise.resolve(req.body);
+  }
   return new Promise((resolve) => {
     const chunks: Buffer[] = [];
     const nodeReq = req as any;
-    if (nodeReq.on) {
+    if (nodeReq.on && typeof nodeReq.on === "function") {
       nodeReq.on("data", (c: Buffer) => chunks.push(c));
       nodeReq.on("end", () => {
         try {
-          resolve(JSON.parse(Buffer.concat(chunks).toString()));
+          const raw = Buffer.concat(chunks).toString();
+          resolve(raw ? JSON.parse(raw) : {});
         } catch {
           resolve({});
         }
@@ -115,3 +129,4 @@ export function readBody(req: VercelRequest): Promise<any> {
     }
   });
 }
+

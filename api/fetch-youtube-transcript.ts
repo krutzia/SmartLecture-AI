@@ -2,6 +2,9 @@ import type { VercelRequest, VercelResponse } from "./lib/ai";
 import { jsonError, readBody } from "./lib/ai";
 import { YoutubeTranscript } from "youtube-transcript";
 
+export const maxDuration = 60;
+export const config = { maxDuration: 60 };
+
 function extractVideoId(url: string): string | null {
   try {
     const u = new URL(url);

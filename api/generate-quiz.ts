@@ -1,6 +1,9 @@
 import type { VercelRequest, VercelResponse } from "./lib/ai";
 import { getAI, DEFAULT_MODEL, cleanAndParseJson, extractArray, jsonError, readBody } from "./lib/ai";
 
+export const maxDuration = 60;
+export const config = { maxDuration: 60 };
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");

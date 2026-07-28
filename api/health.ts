@@ -1,16 +1,16 @@
 import type { VercelRequest, VercelResponse } from "./lib/ai";
 import { getAI, DEFAULT_MODEL, jsonError } from "./lib/ai";
 
+export const maxDuration = 60;
+export const config = { maxDuration: 60 };
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   const apiKey = process.env.OPENROUTER_API_KEY;
   if (!apiKey) {
     return jsonError(res, 500, "OPENROUTER_API_KEY is not set in environment variables");
   }
-  if (apiKey.length < 10) {
+  if (apiKey.length < 8) {
     return jsonError(res, 500, "OPENROUTER_API_KEY appears invalid (too short). Get a valid key from https://openrouter.ai/keys");
-  }
-  if (!apiKey.startsWith("sk-or-")) {
-    return jsonError(res, 500, `OPENROUTER_API_KEY has wrong format (starts with "${apiKey.slice(0, 6)}..."). It should start with "sk-or-". Get a valid key from https://openrouter.ai/keys`);
   }
 
   try {
