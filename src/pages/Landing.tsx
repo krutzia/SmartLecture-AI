@@ -16,13 +16,19 @@ const features = [
 
 const Landing = () => {
   const { user, signIn } = useAuth();
+  const { profile } = useProfile();
   const navigate = useNavigate();
 
   // Starting the app always begins a *fresh* anonymous session when signed out.
   const enterApp = () => {
-    if (!user) signIn();
-    navigate("/dashboard");
+    if (!user) {
+      signIn();
+      navigate("/onboarding");
+      return;
+    }
+    navigate(profile.onboarded ? "/dashboard" : "/onboarding");
   };
+
 
   return (
     <div className="min-h-screen bg-gradient-cream">

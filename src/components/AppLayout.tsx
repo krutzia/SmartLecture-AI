@@ -64,9 +64,23 @@ export const AppLayout = () => {
                 <Search className="h-4 w-4" />
               </Button>
               <ThemeToggle />
-              <span className="hidden text-sm text-muted-foreground sm:inline">
-                {profile.name.trim() || profile.email.trim() || user?.email}
-              </span>
+              <div className="flex items-center gap-2">
+                <div className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-full bg-gradient-hero text-[11px] font-extrabold text-white">
+                  {profile.avatar ? (
+                    <img
+                      src={profile.avatar}
+                      alt={profile.name ? `${profile.name}'s avatar` : "Your avatar"}
+                      className="h-full w-full object-cover"
+                    />
+                  ) : (
+                    initialsOf(profile.name) || "?"
+                  )}
+                </div>
+                <span className="hidden text-sm text-muted-foreground sm:inline">
+                  {greetingName ? `Hey, ${greetingName}` : profile.email.trim() || user?.email}
+                </span>
+              </div>
+
               <SignOutButton labelClassName="hidden sm:inline" />
             </div>
           </header>
