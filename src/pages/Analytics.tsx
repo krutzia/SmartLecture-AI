@@ -17,7 +17,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/lib/localStore";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { StudyHeatmap } from "@/components/StudyHeatmap";

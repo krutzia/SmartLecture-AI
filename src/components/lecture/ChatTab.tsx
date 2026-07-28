@@ -12,7 +12,7 @@ import {
   Activity,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/lib/localStore";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -32,6 +32,11 @@ import {
 } from "@/lib/chatTelemetry";
 
 type Msg = { role: "user" | "assistant"; content: string };
+
+async function loadTranscript(lectureId: string): Promise<string> {
+  const { data } = await supabase.from("transcripts").select("full_text").eq("lecture_id", lectureId).maybeSingle();
+  return (data as any)?.full_text ?? "";
+}
 
 const QUICK_ACTIONS = [
   "Explain slide 1",
@@ -123,14 +128,13 @@ export const ChatTab = ({ lectureId, lectureTitle }: { lectureId: string; lectur
     let cancelled = false;
     const loadSlides = async () => {
       try {
-        const resp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/chat-with-lecture`, {
+        const transcript = await loadTranscript(lectureId);
+        const resp = await fetch("/api/chat-with-lecture", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
-            Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
           },
-          body: JSON.stringify({ lectureId, userId: user.id, mode: "slides" }),
+          body: JSON.stringify({ lectureId, userId: user.id, mode: "slides", transcript }),
         });
         if (!resp.ok) return;
         const json = await resp.json();
@@ -231,15 +235,14 @@ export const ChatTab = ({ lectureId, lectureTitle }: { lectureId: string; lectur
     };
 
     try {
-      const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/chat-with-lecture`;
+      const transcript = await loadTranscript(lectureId);
+      const url = "/api/chat-with-lecture";
       const resp = await fetch(url, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
-          Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
         },
-        body: JSON.stringify({ lectureId, userId: user.id, messages: newMessages }),
+        body: JSON.stringify({ lectureId, userId: user.id, messages: newMessages, transcript }),
       });
 
       if (!resp.ok || !resp.body) {

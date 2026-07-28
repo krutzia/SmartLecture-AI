@@ -1,7 +1,7 @@
 const KEY = "smartlecture_device_id";
 
 /** App-owned localStorage prefixes that must be wiped when a session ends. */
-const APP_STORAGE_PREFIXES = ["smartlecture", "sb-", "supabase", "palette", "chat_telemetry", "slide_bookmarks"];
+const APP_STORAGE_PREFIXES = ["smartlecture", "sl_db_", "palette", "chat_telemetry", "slide_bookmarks"];
 
 /** Returns the current anonymous session id, or null when signed out. */
 export function getSessionId(): string | null {
@@ -47,7 +47,7 @@ export async function endSession(): Promise<void> {
     /* ignore */
   }
 
-  // IndexedDB (used by some Supabase / cache layers)
+  // IndexedDB (cleared for completeness)
   try {
     const idb = indexedDB as IDBFactory & { databases?: () => Promise<{ name?: string }[]> };
     if (typeof idb.databases === "function") {

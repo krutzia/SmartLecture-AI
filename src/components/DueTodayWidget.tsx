@@ -3,7 +3,7 @@ import { getDeviceId } from "@/lib/deviceId";
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Layers, ArrowRight, Sparkles } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/lib/localStore";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";

@@ -3,7 +3,7 @@ import {
   Volume2, Pause, Play, Loader2, Sparkles, Download,
   SkipBack, SkipForward,
 } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/lib/localStore";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import { toast } from "@/hooks/use-toast";

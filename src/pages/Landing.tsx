@@ -2,7 +2,6 @@ import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { motion } from "framer-motion";
 import { Sparkles, Upload, Brain, MessageCircle, Lightbulb, Zap, BookOpen } from "lucide-react";
-import logoAsset from "@/assets/logo-icon.png.asset.json";
 import { Button } from "@/components/ui/button";
 import { useProfile } from "@/lib/profile";
 
@@ -37,9 +36,9 @@ const Landing = () => {
       {/* Nav */}
       <nav className="container flex items-center justify-between py-6">
         <Link to="/" className="flex items-center gap-2">
-          <img src={logoAsset.url} alt="SmartLecture" className="h-10 w-10 object-contain" />
+          <img src="/logo.svg" alt="SmartLecture AI" className="h-10 w-10 object-contain" />
           <span className="font-display text-xl font-extrabold">
-            Smart<span className="text-primary">Lecture</span>
+            Smart<span className="text-primary">Lecture</span> AI
           </span>
         </Link>
         <div className="flex items-center gap-2">
@@ -121,7 +120,7 @@ const Landing = () => {
       </section>
 
       <footer className="container border-t border-border/50 py-8 text-center text-sm text-muted-foreground">
-        Made with <span className="text-primary">♥</span> for curious learners.
+        Built by <span className="font-medium">Krutzia</span> — SmartLecture AI.
       </footer>
     </div>
   );

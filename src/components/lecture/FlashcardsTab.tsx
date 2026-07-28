@@ -2,7 +2,7 @@ import { getDeviceId } from "@/lib/deviceId";
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { ChevronLeft, ChevronRight, RotateCw, Zap, Target, Smile, Trophy, CheckCircle2 } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/lib/localStore";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";

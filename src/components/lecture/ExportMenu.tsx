@@ -7,7 +7,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/lib/localStore";
 import { toast } from "sonner";
 import jsPDF from "jspdf";
 import { Document, Packer, Paragraph, HeadingLevel, TextRun } from "docx";
