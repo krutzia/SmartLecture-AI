@@ -56,7 +56,7 @@ const Dashboard = () => {
       <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <h1 className="font-display text-3xl font-extrabold md:text-4xl">
-            Hey there 👋
+            Hey {firstName || "there"} 👋
           </h1>
           <p className="mt-1 text-muted-foreground">Here's a quick look at your study workspace.</p>
         </div>
