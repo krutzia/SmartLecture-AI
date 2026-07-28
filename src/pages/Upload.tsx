@@ -234,10 +234,20 @@ const Upload = () => {
 
     if (kind === "youtube") {
       const id = getYouTubeId(url);
+      let title = "YouTube Lecture";
+      try {
+        const oembedRes = await fetch(`https://www.youtube.com/oembed?url=${encodeURIComponent(url)}&format=json`);
+        if (oembedRes.ok) {
+          const oembed = await oembedRes.json();
+          if (oembed.title) title = oembed.title;
+        }
+      } catch {
+        /* fallback to default */
+      }
       setPreview({
         kind,
-        title: MOCK_TITLES[Math.floor(Math.random() * MOCK_TITLES.length)],
-        duration: `${40 + Math.floor(Math.random() * 30)}:${String(Math.floor(Math.random() * 60)).padStart(2, "0")}`,
+        title,
+        duration: "YouTube Video",
         thumb: id ? `https://i.ytimg.com/vi/${id}/hqdefault.jpg` : undefined,
         url,
       });
