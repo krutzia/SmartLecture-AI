@@ -13,6 +13,8 @@ const features = [
   { icon: MessageCircle, title: "Study chatbot", desc: "Ask anything — your AI tutor knows the lecture cold.", color: "bg-secondary text-secondary-foreground" },
   { icon: Zap, title: "Lightning fast", desc: "Process a whole lecture in under a minute.", color: "bg-primary-soft text-primary" },
 ];
+import { useProfile } from "@/lib/profile";
+
 
 const Landing = () => {
   const { user, signIn } = useAuth();
