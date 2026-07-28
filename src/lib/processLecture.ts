@@ -365,12 +365,14 @@ export async function processLectureLocally(lectureId: string, userId: string): 
       const ytResp = await fetch("/api/fetch-youtube-transcript", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "same-origin",
         body: JSON.stringify({ url }),
       });
 
       if (!ytResp.ok) {
         const errData = await ytResp.json().catch(() => null);
-        const errorMsg = errData?.error ?? `Failed to fetch transcript (status ${ytResp.status})`;
+        const rawErr = errData?.error;
+        const errorMsg = typeof rawErr === "string" ? rawErr : rawErr?.message ?? `Failed to fetch transcript (status ${ytResp.status})`;
         throw new Error(errorMsg);
       }
 
@@ -418,6 +420,7 @@ export async function processLectureLocally(lectureId: string, userId: string): 
     const resp = await fetch("/api/process-lecture", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
+      credentials: "same-origin",
       body: JSON.stringify({
         lectureId,
         userId,
@@ -428,7 +431,9 @@ export async function processLectureLocally(lectureId: string, userId: string): 
 
     if (!resp.ok) {
       const errData = await resp.json().catch(() => null);
-      throw new Error(errData?.error ?? `API processing failed with status ${resp.status}`);
+      const rawErr = errData?.error;
+      const errorMsg = typeof rawErr === "string" ? rawErr : rawErr?.message ?? `API processing failed with status ${resp.status}`;
+      throw new Error(errorMsg);
     }
 
     const data = await resp.json();

@@ -380,6 +380,7 @@ async function invokeFunction(name: string, opts?: { body?: any }): Promise<SBRe
         const resp = await fetch("/api/generate-quiz", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
+          credentials: "same-origin",
           body: JSON.stringify({ ...body, transcript }),
         });
         if (!resp.ok) {
@@ -402,6 +403,7 @@ async function invokeFunction(name: string, opts?: { body?: any }): Promise<SBRe
         const resp = await fetch("/api/cluster-concepts", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
+          credentials: "same-origin",
           body: JSON.stringify({ lectureId: body.lectureId, concepts }),
         });
         if (!resp.ok) throw new Error("Clustering failed");

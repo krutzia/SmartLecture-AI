@@ -134,6 +134,7 @@ export const ChatTab = ({ lectureId, lectureTitle }: { lectureId: string; lectur
           headers: {
             "Content-Type": "application/json",
           },
+          credentials: "same-origin",
           body: JSON.stringify({ lectureId, userId: user.id, mode: "slides", transcript }),
         });
         if (!resp.ok) return;
@@ -242,6 +243,7 @@ export const ChatTab = ({ lectureId, lectureTitle }: { lectureId: string; lectur
         headers: {
           "Content-Type": "application/json",
         },
+        credentials: "same-origin",
         body: JSON.stringify({ lectureId, userId: user.id, messages: newMessages, transcript }),
       });
 

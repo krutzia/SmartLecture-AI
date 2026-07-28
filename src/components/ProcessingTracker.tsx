@@ -222,10 +222,12 @@ export function ProcessingTracker({
         ))}
       </ul>
 
-      {failed && snap.error && (
+      {failed && (
         <div className="mt-5 rounded-2xl border border-destructive/30 bg-destructive/5 p-4 text-sm">
           <div className="font-semibold text-destructive">Something went wrong</div>
-          <div className="mt-1 text-muted-foreground">{snap.error}</div>
+          <div className="mt-1 text-muted-foreground">
+            {snap.error || "Failed to fetch transcript or process lecture. Please verify the URL or try again."}
+          </div>
         </div>
       )}
 
