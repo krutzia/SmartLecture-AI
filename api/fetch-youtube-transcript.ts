@@ -38,30 +38,41 @@ function parseTimedTextXml(xml: string): string {
       .replace(/&#x([0-9a-fA-F]+);/g, (_, hex) => String.fromCodePoint(parseInt(hex, 16)))
       .replace(/&#(\d+);/g, (_, dec) => String.fromCodePoint(parseInt(dec, 10)));
 
-  // Try 1: <p t="..." d="..."><s>word</s>...</p> or <p t="...">text</p> (srv3 format)
+  // Try 1: <p> tags with optional <s> sub-spans (srv3 format)
   const pMatches = [...xml.matchAll(/<p\s+[^>]*>([\s\S]*?)<\/p>/gi)];
   if (pMatches.length > 0) {
-    for (const match of pMatches) {
-      const inner = match[1];
-      let text = "";
+    for (const m of pMatches) {
+      const inner = m[1];
       const sMatches = [...inner.matchAll(/<s[^>]*>([^<]*)<\/s>/gi)];
-      if (sMatches.length > 0) {
-        text = sMatches.map((m) => m[1]).join("");
-      } else {
-        text = inner.replace(/<[^>]+>/g, "");
-      }
-      text = decode(text).trim();
-      if (text) lines.push(text);
+      const text = sMatches.length > 0 ? sMatches.map((s) => s[1]).join("") : inner.replace(/<[^>]+>/g, "");
+      const clean = decode(text).trim();
+      if (clean) lines.push(clean);
     }
   }
 
-  // Try 2: <text start="..." dur="...">text</text> (classic format)
+  // Try 2: <text> tags (classic format)
   if (lines.length === 0) {
     const textMatches = [...xml.matchAll(/<text[^>]*>([\s\S]*?)<\/text>/gi)];
-    for (const match of textMatches) {
-      const text = decode(match[1].replace(/<[^>]+>/g, "")).trim();
-      if (text) lines.push(text);
+    for (const m of textMatches) {
+      const clean = decode(m[1].replace(/<[^>]+>/g, "")).trim();
+      if (clean) lines.push(clean);
     }
+  }
+
+  // Try 3: <w> tags (word tags in format 3 timedtext)
+  if (lines.length === 0) {
+    const wMatches = [...xml.matchAll(/<w\s+[^>]*>([\s\S]*?)<\/w>/gi)];
+    for (const m of wMatches) {
+      const clean = decode(m[1].replace(/<[^>]+>/g, "")).trim();
+      if (clean) lines.push(clean);
+    }
+  }
+
+  // Try 4: Generic XML tag stripping fallback (excluding <head>)
+  if (lines.length === 0) {
+    const bodyContent = xml.replace(/<head>[\s\S]*?<\/head>/gi, "");
+    const rawText = decode(bodyContent.replace(/<[^>]+>/g, " "));
+    if (rawText.trim()) lines.push(rawText.trim());
   }
 
   return lines
