@@ -90,9 +90,21 @@ async function getTranscriptWithFallbacks(videoId: string): Promise<string> {
     const androidUA = "com.google.android.youtube/20.10.38 (Linux; U; Android 11)";
     const res = await fetch("https://www.youtube.com/youtubei/v1/player?prettyPrint=false", {
       method: "POST",
-      headers: { "Content-Type": "application/json", "User-Agent": androidUA },
+      headers: {
+        "Content-Type": "application/json",
+        "User-Agent": androidUA,
+        "X-Youtube-Client-Name": "3",
+        "X-Youtube-Client-Version": "20.10.38",
+      },
       body: JSON.stringify({
-        context: { client: { clientName: "ANDROID", clientVersion: "20.10.38", hl: "en", gl: "US" } },
+        context: {
+          client: {
+            clientName: "ANDROID",
+            clientVersion: "20.10.38",
+            hl: "en",
+            gl: "US",
+          },
+        },
         videoId,
       }),
     });
@@ -101,8 +113,20 @@ async function getTranscriptWithFallbacks(videoId: string): Promise<string> {
       const tracks = data?.captions?.playerCaptionsTracklistRenderer?.captionTracks;
       if (tracks && tracks.length > 0) {
         const selectedTrack =
-          tracks.find((t: any) => t.languageCode === "en" || t.vssId?.includes(".en")) || tracks[0];
-        const capRes = await fetch(selectedTrack.baseUrl, { headers: { "User-Agent": androidUA } });
+          tracks.find(
+            (t: any) =>
+              t.languageCode === "en" ||
+              t.languageCode?.startsWith("en") ||
+              t.vssId?.includes(".en")
+          ) || tracks[0];
+        let capRes = await fetch(selectedTrack.baseUrl, { headers: { "User-Agent": androidUA } });
+        if (capRes.ok) {
+          const xml = await capRes.text();
+          const text = parseTimedTextXml(xml);
+          if (text.length > 30) return text;
+        }
+        // Fallback fetch without headers
+        capRes = await fetch(selectedTrack.baseUrl);
         if (capRes.ok) {
           const xml = await capRes.text();
           const text = parseTimedTextXml(xml);
