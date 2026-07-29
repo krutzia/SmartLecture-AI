@@ -9,7 +9,7 @@
 </p>
 
 <p align="center">
-  <a href="YOUR_VERCEL_URL"><strong>🌐 Live Demo</strong></a> •
+  <a href="https://smart-lecture-git-main-krutzias-projects.vercel.app"><strong>🌐 Live Demo</strong></a>
   <a href="https://github.com/krutzia/SmartLecture"><strong>📂 Repository</strong></a>
 </p>
 
